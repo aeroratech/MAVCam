@@ -3,6 +3,7 @@
 #include <dlfcn.h>
 #include <unistd.h>
 
+#include <iomanip>  // for std::setprecision
 #include <thread>
 
 #include "base/log.h"
@@ -612,9 +613,12 @@ std::string CameraImpl::get_ev_value() {
     if (result != mav_camera::Result::Success) {
         base::LogError() << "Cannot get exposure value"
                          << convert_camera_result_to_mav_result(result);
-        return "0";
+        return "0.0";
     }
-    return std::to_string(value);
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(1) << value;
+    std::string ev_value = oss.str();
+    return ev_value;
 }
 
 std::string CameraImpl::get_iso_value() {
