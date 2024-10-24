@@ -565,19 +565,17 @@ std::string CameraImpl::get_camera_display_mode() {
 */
 bool CameraImpl::set_whitebalance_mode(std::string mode) {
     mav_camera::Result result;
-    if (mode == "0") {
+    if (mode == "0") {  // Auto
         result = _mav_camera->set_white_balance(mav_camera::kAutoWhitebalanceValue);
-    } else if (mode == "1") {
-        result = _mav_camera->set_white_balance(2200);
-    } else if (mode == "2") {
-        result = _mav_camera->set_white_balance(2500);
-    } else if (mode == "3") {
-        result = _mav_camera->set_white_balance(3000);
-    } else if (mode == "4") {
-        result = _mav_camera->set_white_balance(5200);
-    } else if (mode == "5") {
-        result = _mav_camera->set_white_balance(6200);
-    } else if (mode == "7") {
+    } else if (mode == "1") {  // Daylight
+        result = _mav_camera->set_white_balance(5500);
+    } else if (mode == "2") {  // Cloudy
+        result = _mav_camera->set_white_balance(6500);
+    } else if (mode == "3") {  // Shady
+        result = _mav_camera->set_white_balance(7500);
+    } else if (mode == "4") {  // Incandescent
+        result = _mav_camera->set_white_balance(2700);
+    } else if (mode == "5") {  // Fluorescent
         result = _mav_camera->set_white_balance(4000);
     }
     base::LogDebug() << "set whitebalance mode to " << mode << " result " << (int)result;
@@ -594,18 +592,16 @@ std::string CameraImpl::get_whitebalance_mode() {
     }
     if (value == mav_camera::kAutoWhitebalanceValue) {
         return "0";
-    } else if (value == 2200) {
+    } else if (value == 5500) {
         return "1";
-    } else if (value == 2500) {
+    } else if (value == 6500) {
         return "2";
-    } else if (value == 3000) {
+    } else if (value == 7500) {
         return "3";
-    } else if (value == 5200) {
+    } else if (value == 2700) {
         return "4";
-    } else if (value == 6200) {
-        return "5";
     } else if (value == 4000) {
-        return "7";
+        return "5";
     }
     base::LogWarn() << "invalid white balance value " << value;
     return "0";

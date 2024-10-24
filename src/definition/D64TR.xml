@@ -51,12 +51,11 @@
             <description>White Balance Mode</description>
             <options>
                 <option name="Auto" value="0" />
-                <option name="Incandescent" value="1" />
-                <option name="Sunrise" value="2" />
-                <option name="Sunset" value="3" />
-                <option name="Sunny" value="4" />
-                <option name="Cloudy" value="5" />
-                <option name="Fluorescent" value="7" />
+                <option name="Daylight" value="1" />
+                <option name="Cloudy" value="2" />
+                <option name="Shady" value="3" />
+                <option name="Incandescent" value="4" />
+                <option name="Fluorescent" value="5" />
             </options>
         </parameter>
         <parameter name="CAM_EXPMODE" type="int32" default="0">
