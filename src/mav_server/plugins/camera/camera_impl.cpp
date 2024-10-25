@@ -14,6 +14,7 @@ const std::string kCameraDisplayModeName = "CAM_DISPLAY_MODE";
 const std::string kCameraModeName = "CAM_MODE";
 const std::string kPhotoResolution = "CAM_PHOTO_RES";
 const std::string kWhitebalanceModeName = "CAM_WBMODE";
+const std::string kExposureMode = "CAM_EXPMODE";
 const std::string kEVName = "CAM_EV";
 const std::string kISOName = "CAM_ISO";
 const std::string kShutterSpeedName = "CAM_SHUTTERSPD";
@@ -121,7 +122,8 @@ Camera::Result CameraImpl::prepare() {
     _settings.emplace_back(build_setting(kPhotoResolution, "1"));  // 1 for 4624x3472
     std::string wb_mode = get_whitebalance_mode();
     _settings.emplace_back(build_setting(kWhitebalanceModeName, wb_mode));
-    _settings.emplace_back(build_setting("CAM_EXPMODE", "0"));
+    // 0 for auto exposure mode
+    _settings.emplace_back(build_setting(kExposureMode, "0"));
     std::string ev_value = get_ev_value();
     _settings.emplace_back(build_setting(kEVName, ev_value));
     std::string iso_value = get_iso_value();
@@ -414,6 +416,9 @@ Camera::Result CameraImpl::set_setting(Camera::Setting setting) {
         }
     } else if (setting.setting_id == kWhitebalanceModeName) {  // whitebalance mode
         set_success = set_whitebalance_mode(setting.option.option_id);
+    } else if (setting.setting_id == kExposureMode) {
+        // exposure mode not set to camera implement
+        set_success = true;
     } else if (setting.setting_id == kEVName) {  // exposure value
         auto result = _mav_camera->set_exposure_value(std::stof(setting.option.option_id));
         set_success = result == mav_camera::Result::Success;
@@ -430,8 +435,8 @@ Camera::Result CameraImpl::set_setting(Camera::Setting setting) {
     } else if (setting.setting_id == kIrCamFFC) {
         set_success = set_ir_FFC(setting.option.option_id);
     } else {
-        base::LogError() << "Not implement setting";
-        set_success = true;
+        base::LogError() << "Not implement setting" << setting.setting_id;
+        set_success = false;
     }
 
     if (set_success) {  // update current setting
@@ -480,8 +485,8 @@ Camera::Result CameraImpl::reset_settings() {
 
     set_setting(build_setting("CAM_EXPMODE", "0"));
     set_setting(build_setting("CAM_EV", "0"));
-    set_setting(build_setting("CAM_ISO", "100"));
-    set_setting(build_setting("CAM_SHUTTERSPD", "0.01"));
+    set_setting(build_setting("CAM_ISO", "125"));
+    set_setting(build_setting("CAM_SHUTTERSPD", "1/100"));
     set_setting(build_setting("CAM_VIDFMT", "1"));
     set_setting(build_setting("CAM_VIDRES", "0"));
     return Camera::Result::Success;
@@ -635,9 +640,26 @@ std::string CameraImpl::get_shutter_speed_value() {
     if (result != mav_camera::Result::Success) {
         base::LogDebug() << "Cannot get shutterspeed"
                          << convert_camera_result_to_mav_result(result);
-        return "1";
+        return "0.01";  // default value
     }
-    return value;
+    std::size_t pos = value.find('/');
+    if (pos != std::string::npos) {
+        // Split the string at '/'
+        std::string num_str = value.substr(0, pos);
+        std::string den_str = value.substr(pos + 1);
+
+        // Convert to float
+        float numerator = std::stof(num_str);
+        float denominator = std::stof(den_str);
+
+        // Perform the division
+        auto convert_result = std::to_string(numerator / denominator);
+        base::LogDebug() << "current shutter speed is : " << convert_result;
+        return convert_result;
+    } else {
+        // If there is no '/', assume it's a whole number
+        return value;
+    }
 }
 
 std::string CameraImpl::get_video_resolution() {
