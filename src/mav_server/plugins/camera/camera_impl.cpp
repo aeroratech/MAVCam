@@ -83,6 +83,7 @@ Camera::Result CameraImpl::prepare() {
     options.preview_weston_output = true;
 
     options.init_mode = mav_camera::Mode::Photo;
+
     if (options.init_mode == mav_camera::Mode::Photo) {
         options.preview_width = kPreviewWidth;
         options.preview_height = kPreviewPhotoHeight;

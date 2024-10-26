@@ -18,7 +18,7 @@ public:
     ~MavClient() {}
 public:
     bool init(std::string &connection_url, bool use_local, int32_t rpc_port,
-              std::string &ftp_root_path);
+              std::string &ftp_root_path, bool compatible_qgc);
     bool start_runloop();
     void stop_runloop();
 private:
@@ -32,6 +32,7 @@ private:
     int32_t _rpc_port;
     CameraClient *_camera_client;
     std::string _ftp_root_path;
+    bool _compatible_qgc;
 };
 
 }  // namespace mavcam

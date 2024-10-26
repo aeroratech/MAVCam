@@ -13,6 +13,7 @@ static auto constexpr default_rpc_port = 50051;
 static std::string default_ftp_path = "/usr/share/mav-cam/";
 static std::string default_log_path = "/data/camera/";
 static std::fstream *default_log_stream = nullptr;
+static bool compatible_qgc = false;
 
 static void usage(const char *bin_name);
 static void init_log();
@@ -78,6 +79,8 @@ int main(int argc, const char *argv[]) {
             }
             default_log_path = std::string(argv[i + 1]);
             i++;
+        } else if (current_arg == "--qgc") {
+            compatible_qgc = true;
         } else {
             std::cout << "Invalid option : " << current_arg << std::endl;
             usage(argv[0]);
@@ -85,7 +88,7 @@ int main(int argc, const char *argv[]) {
         }
     }
 
-    if (!client.init(connection_url, use_local, rpc_port, default_ftp_path)) {
+    if (!client.init(connection_url, use_local, rpc_port, default_ftp_path, compatible_qgc)) {
         std::cout << "Cannot init mav client " << connection_url << std::endl;
         return 1;
     }
@@ -120,6 +123,8 @@ void usage(const char *bin_name) {
               << "\t-f | --ftp_path: set the ftp root path,"
               << " (default is " << default_ftp_path << ")" << '\n'
               << "\t--log_path     : store output log to file path, default is " << default_log_path
+              << '\n'
+              << "\t--qgc          : work compatible with QGC(make mav_client work as Autopilot)"
               << '\n';
 }
 

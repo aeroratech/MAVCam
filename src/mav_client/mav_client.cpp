@@ -15,11 +15,12 @@
 namespace mavcam {
 
 bool MavClient::init(std::string &connection_url, bool use_local, int32_t rpc_port,
-                     std::string &ftp_root_path) {
+                     std::string &ftp_root_path, bool compatible_qgc) {
     // TODO need check connection url first
     _connection_url = connection_url;
     _rpc_port = rpc_port;
     _ftp_root_path = ftp_root_path;
+    _compatible_qgc = compatible_qgc;
 
     if (use_local) {
         _camera_client = CreateLocalCameraClient();  // use local client
@@ -33,7 +34,11 @@ bool MavClient::init(std::string &connection_url, bool use_local, int32_t rpc_po
 }
 
 bool MavClient::start_runloop() {
-    mavsdk::Mavsdk mavsdk{mavsdk::Mavsdk::Configuration{mavsdk::Mavsdk::ComponentType::Camera}};
+    auto component_type = mavsdk::Mavsdk::ComponentType::Camera;
+    if (_compatible_qgc) {
+        component_type = mavsdk::Mavsdk::ComponentType::Autopilot;
+    }
+    mavsdk::Mavsdk mavsdk{mavsdk::Mavsdk::Configuration{component_type}};
 
     auto result = mavsdk.add_any_connection(_connection_url);
     if (result != mavsdk::ConnectionResult::Success) {

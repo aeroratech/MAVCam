@@ -113,8 +113,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_timestamp(int64_t time_unix_
 
 mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     mavsdk::CameraServer::Information &information) {
-    information.vendor_name = "GoerLabs";
-    information.model_name = "C10";
+    information.vendor_name = "Aeroratech";
+    information.model_name = "D64TR.xml";
     information.firmware_version = "0.0.1";
     information.focal_length_mm = 3.0;
     information.horizontal_sensor_size_mm = 3.68;
@@ -123,7 +123,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     information.vertical_resolution_px = 2464;
     information.lens_id = 0;
     information.definition_file_version = 1;
-    information.definition_file_uri = "mftp://definition/C10.xml";  // TODO: just demo
+    information.definition_file_uri = "mftp://definition/D64TR.xml";
     information.camera_cap_flags.emplace_back(
         mavsdk::CameraServer::Information::CameraCapFlags::CaptureImage);
     information.camera_cap_flags.emplace_back(
