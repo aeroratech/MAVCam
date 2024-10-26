@@ -77,6 +77,15 @@ int main(int argc, const char *argv[]) {
         if (file_uri.find("mftp://") == 0) {
             file_uri = file_uri.substr(7);
             std::string define_data = download_camera_definition_file_by_ftp(system, file_uri);
+
+            camera.subscribe_current_settings([](std::vector<mavsdk::Camera::Setting> settings) {
+                std::cout << "get current settings :" << std::endl;
+                for (const auto &setting : settings) {
+                    std::cout << "  - " << setting.setting_id << " : " << setting.option.option_id
+                              << '\n';
+                }
+            });
+
             if (define_data.size() > 0) {
                 auto result = camera.set_definition_data(define_data);
                 std::cout << "set camera definition data result : " << result << std::endl;
