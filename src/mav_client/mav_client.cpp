@@ -117,36 +117,38 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
     camera_server.subscribe_stop_video([this, &camera_server](int32_t stream_id) {
         auto result = _camera_client->stop_video();
         if (result != mavsdk::CameraServer::Result::Success) {
-            camera_server.respond_start_video(mavsdk::CameraServer::CameraFeedback::Failed);
+            camera_server.respond_stop_video(mavsdk::CameraServer::CameraFeedback::Failed);
         } else {
-            camera_server.respond_start_video(mavsdk::CameraServer::CameraFeedback::Ok);
+            camera_server.respond_stop_video(mavsdk::CameraServer::CameraFeedback::Ok);
         }
     });
 
     camera_server.subscribe_start_video_streaming([this, &camera_server](int32_t stream_id) {
         auto result = _camera_client->start_video_streaming(stream_id);
         if (result != mavsdk::CameraServer::Result::Success) {
-            camera_server.respond_start_video(mavsdk::CameraServer::CameraFeedback::Failed);
+            camera_server.respond_start_video_streaming(
+                mavsdk::CameraServer::CameraFeedback::Failed);
         } else {
-            camera_server.respond_start_video(mavsdk::CameraServer::CameraFeedback::Ok);
+            camera_server.respond_start_video_streaming(mavsdk::CameraServer::CameraFeedback::Ok);
         }
     });
 
     camera_server.subscribe_stop_video_streaming([this, &camera_server](int32_t stream_id) {
         auto result = _camera_client->stop_video_streaming(stream_id);
         if (result != mavsdk::CameraServer::Result::Success) {
-            camera_server.respond_start_video(mavsdk::CameraServer::CameraFeedback::Failed);
+            camera_server.respond_stop_video_streaming(
+                mavsdk::CameraServer::CameraFeedback::Failed);
         } else {
-            camera_server.respond_start_video(mavsdk::CameraServer::CameraFeedback::Ok);
+            camera_server.respond_stop_video_streaming(mavsdk::CameraServer::CameraFeedback::Ok);
         }
     });
 
     camera_server.subscribe_set_mode([this, &camera_server](mavsdk::CameraServer::Mode mode) {
         auto result = _camera_client->set_mode(mode);
         if (result != mavsdk::CameraServer::Result::Success) {
-            camera_server.respond_start_video(mavsdk::CameraServer::CameraFeedback::Failed);
+            camera_server.respond_set_mode(mavsdk::CameraServer::CameraFeedback::Failed);
         } else {
-            camera_server.respond_start_video(mavsdk::CameraServer::CameraFeedback::Ok);
+            camera_server.respond_set_mode(mavsdk::CameraServer::CameraFeedback::Ok);
         }
     });
 
@@ -188,16 +190,15 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
     mavsdk::CameraServer::Information information;
     _camera_client->fill_information(information);
     auto ret = camera_server.set_information(information);
+    if (ret != mavsdk::CameraServer::Result::Success) {
+        base::LogError() << "Failed to set camera info";
+    }
 
     // fill video stream info
     std::vector<mavsdk::CameraServer::VideoStreamInfo> video_stream_infos;
     _camera_client->fill_video_stream_info(video_stream_infos);
     if (video_stream_infos.size() > 0) {
         ret = camera_server.set_video_stream_info(video_stream_infos);
-    }
-
-    if (ret != mavsdk::CameraServer::Result::Success) {
-        base::LogError() << "Failed to set camera info";
     }
 }
 

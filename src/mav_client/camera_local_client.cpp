@@ -19,6 +19,8 @@ CameraLocalClient::CameraLocalClient() {
 
     // TODO just demo for settings
     _settings[kCameraModeName] = "0";
+    _settings["CAM_DISPLAY_MODE"] = "0";
+    _settings["CAM_PHOTO_RES"] = "1";
     _settings["CAM_WBMODE"] = "4";
     _settings["CAM_EXPMODE"] = "0";
     _settings["CAM_EV"] = "1";
@@ -26,7 +28,10 @@ CameraLocalClient::CameraLocalClient() {
     _settings["CAM_SHUTTERSPD"] = "0.01";
     _settings["CAM_VIDFMT"] = "2";
     _settings["CAM_VIDRES"] = "0";
+    _settings["CAM_VIDFMT"] = "0";
     _settings["CAM_PHOTORATIO"] = "1";
+    _settings["IRCAM_PALETTE"] = "1";
+    _settings["IRCAM_FFC"] = "0";
 }
 
 CameraLocalClient::~CameraLocalClient() {}
@@ -94,6 +99,8 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
     base::LogDebug() << "locally call reset settings";
     // reset settings
     _settings[kCameraModeName] = "0";
+    _settings["CAM_DISPLAY_MODE"] = "0";
+    _settings["CAM_PHOTO_RES"] = "1";
     _settings["CAM_WBMODE"] = "0";
     _settings["CAM_EXPMODE"] = "0";
     _settings["CAM_EV"] = "0";
@@ -102,6 +109,8 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
     _settings["CAM_VIDFMT"] = "1";
     _settings["CAM_VIDRES"] = "0";
     _settings["CAM_PHOTORATIO"] = "1";
+    _settings["IRCAM_PALETTE"] = "1";
+    _settings["IRCAM_FFC"] = "0";
 
     return mavsdk::CameraServer::Result::Success;
 }
