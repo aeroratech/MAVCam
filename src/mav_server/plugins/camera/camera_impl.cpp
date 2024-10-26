@@ -13,12 +13,13 @@ namespace mavcam {
 const std::string kCameraDisplayModeName = "CAM_DISPLAY_MODE";
 const std::string kCameraModeName = "CAM_MODE";
 const std::string kPhotoResolution = "CAM_PHOTO_RES";
+const std::string kVideoResolution = "CAM_VIDRES";
+const std::string kVideoFormat = "CAM_VIDFMT";
 const std::string kWhitebalanceModeName = "CAM_WBMODE";
 const std::string kExposureMode = "CAM_EXPMODE";
 const std::string kEVName = "CAM_EV";
 const std::string kISOName = "CAM_ISO";
 const std::string kShutterSpeedName = "CAM_SHUTTERSPD";
-const std::string kVideoResolution = "CAM_VIDRES";
 
 const std::string kIrCamPalette = "IRCAM_PALETTE";
 const std::string kIrCamFFC = "IRCAM_FFC";
@@ -131,7 +132,7 @@ Camera::Result CameraImpl::prepare() {
     _settings.emplace_back(build_setting(kISOName, iso_value));
     std::string shutter_speed_value = get_shutter_speed_value();
     _settings.emplace_back(build_setting(kShutterSpeedName, shutter_speed_value));
-    _settings.emplace_back(build_setting("CAM_VIDFMT", "1"));
+    _settings.emplace_back(build_setting(kVideoFormat, "1"));
     std::string video_resolution = get_video_resolution();
     _settings.emplace_back(build_setting(kVideoResolution, video_resolution));
 
@@ -142,6 +143,11 @@ Camera::Result CameraImpl::prepare() {
         base::LogDebug() << "Current ir palette is " << int(color_mode);
         _settings.emplace_back(build_setting(kIrCamPalette, std::to_string(color_mode)));
         _settings.emplace_back(build_setting(kIrCamFFC, "0"));
+    }
+
+    base::LogDebug() << "Init settings :";
+    for (const auto &setting : _settings) {
+        base::LogDebug() << "  - " << setting.setting_id << " : " << setting.option.option_id;
     }
     return Camera::Result::Success;
 }
@@ -237,14 +243,19 @@ Camera::Mode CameraImpl::mode() const {
 
 void CameraImpl::information_async(const Camera::InformationCallback &callback) {
     base::LogDebug() << "call information_async";
-    callback(information());
+    if (callback) {
+        callback(information());
+    }
 }
 
 Camera::Information CameraImpl::information() const {
     Camera::Information out_info;
 
     mav_camera::Information in_info;
-    auto result = _mav_camera->get_information(in_info);
+    mav_camera::Result result = mav_camera::Result::NoSystem;
+    if (_mav_camera != nullptr) {
+        result = _mav_camera->get_information(in_info);
+    }
     if (result == mav_camera::Result::Success) {
         out_info.vendor_name = "Aeroratech";
         out_info.model_name = "D64TR";
@@ -287,26 +298,29 @@ void CameraImpl::video_stream_info_async(const Camera::VideoStreamInfoCallback &
 }
 
 std::vector<Camera::VideoStreamInfo> CameraImpl::video_stream_info() const {
-    mavcam::Camera::VideoStreamInfo normal_video_stream;
-    normal_video_stream.stream_id = 1;
+    if (_mav_camera != nullptr) {
+        mavcam::Camera::VideoStreamInfo normal_video_stream;
+        normal_video_stream.stream_id = 1;
 
-    normal_video_stream.settings.frame_rate_hz = _framerate;
-    mav_camera::Result result;
-    int32_t preview_width = 0;
-    int32_t preview_height = 0;
-    std::tie(result, preview_width, preview_height) = _mav_camera->get_preview_resolution();
-    normal_video_stream.settings.horizontal_resolution_pix = preview_width;
-    normal_video_stream.settings.vertical_resolution_pix = preview_height;
-    // TODO(thomas) : not set video bitrate for now
-    normal_video_stream.settings.bit_rate_b_s = 0;
-    normal_video_stream.settings.rotation_deg = 0;
-    normal_video_stream.settings.uri = "rtsp://192.168.251.1/live";
-    normal_video_stream.settings.horizontal_fov_deg = 0;
-    normal_video_stream.status = mavcam::Camera::VideoStreamInfo::VideoStreamStatus::InProgress;
-    normal_video_stream.spectrum =
-        mavcam::Camera::VideoStreamInfo::VideoStreamSpectrum::VisibleLight;
+        normal_video_stream.settings.frame_rate_hz = _framerate;
+        mav_camera::Result result;
+        int32_t preview_width = 0;
+        int32_t preview_height = 0;
+        std::tie(result, preview_width, preview_height) = _mav_camera->get_preview_resolution();
+        normal_video_stream.settings.horizontal_resolution_pix = preview_width;
+        normal_video_stream.settings.vertical_resolution_pix = preview_height;
+        // TODO(thomas) : not set video bitrate for now
+        normal_video_stream.settings.bit_rate_b_s = 0;
+        normal_video_stream.settings.rotation_deg = 0;
+        normal_video_stream.settings.uri = "rtsp://192.168.251.1/live";
+        normal_video_stream.settings.horizontal_fov_deg = 0;
+        normal_video_stream.status = mavcam::Camera::VideoStreamInfo::VideoStreamStatus::InProgress;
+        normal_video_stream.spectrum =
+            mavcam::Camera::VideoStreamInfo::VideoStreamSpectrum::VisibleLight;
 
-    return {normal_video_stream};
+        return {normal_video_stream};
+    }
+    return {};
 }
 
 void CameraImpl::capture_info_async(const Camera::CaptureInfoCallback &callback) {
@@ -505,6 +519,7 @@ void CameraImpl::close_camera() {
     if (_mav_camera != nullptr) {
         _mav_camera->close();
         delete _mav_camera;
+        _mav_camera = nullptr;
     }
     if (_plugin_handle != NULL) {
         dlclose(_plugin_handle);

@@ -16,7 +16,11 @@ CameraClient *CreateLocalCameraClient() {
 CameraClient *CreateRpcCameraClient(int rpc_port) {
 #ifdef ENABLE_SERVER
     CameraRpcClient *client = new CameraRpcClient();
-    client->init(rpc_port);
+    bool ret = client->init(rpc_port);
+    if (!ret) {
+        delete client;
+        return nullptr;
+    }
     return client;
 #else
     base::LogError() << "Cannot use rpc server when disable server build";

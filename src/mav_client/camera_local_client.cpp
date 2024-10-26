@@ -122,7 +122,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     information.horizontal_resolution_px = 3280;
     information.vertical_resolution_px = 2464;
     information.lens_id = 0;
-    information.definition_file_version = 1;
+    information.definition_file_version = 5;
     information.definition_file_uri = "mftp://definition/D64TR.xml";
     information.camera_cap_flags.emplace_back(
         mavsdk::CameraServer::Information::CameraCapFlags::CaptureImage);

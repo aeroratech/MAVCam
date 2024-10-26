@@ -61,7 +61,13 @@ bool CameraRpcClient::init(int rpc_port) {
         base::LogError() << "Call rpc prepare failed with errorcode: " << status.error_code();
         return false;
     }
-    base::LogDebug() << "Success call prepare camera function";
+    auto result = response.camera_result().result();
+    if (result == mavcam::rpc::camera::CameraResult::RESULT_SUCCESS) {
+        base::LogInfo() << "Camera is ready";
+    } else {
+        base::LogError() << "Camera is not ready, just return";
+        return false;
+    }
 
     _init_information = false;
     _image_count = 0;
