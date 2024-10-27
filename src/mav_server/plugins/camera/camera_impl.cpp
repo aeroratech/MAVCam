@@ -101,6 +101,12 @@ Camera::Result CameraImpl::prepare() {
     options.framerate = _framerate;
     options.debug_calc_fps = false;
 
+    const char *store_prefix = getenv("DEFAULT_STORE_PREFIX");
+    if (store_prefix == NULL) {
+        base::LogWarn() << "No store prefix found";
+    }
+    options.store_prefix = store_prefix;
+
     mav_camera::Result result = _mav_camera->open(options);
     if (result == mav_camera::Result::Success) {
         base::LogDebug() << "open qcom camera success";

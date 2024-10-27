@@ -10,6 +10,7 @@
 static auto constexpr default_rpc_port = 50051;
 static std::string default_log_path = "/data/camera/";
 static std::fstream *default_log_stream = nullptr;
+static std::string default_store_prefix = "NDAA";
 
 static void usage(const char *bin_name);
 static void init_log();
@@ -20,13 +21,8 @@ mavcam::MavServer server;
 
 int main(int argc, const char *argv[]) {
     std::ios::sync_with_stdio(true);
-    base::create_folder_if_not_exit(default_log_path);
-    init_log();
-    signal(SIGINT, signal_handler);
-    base::LogDebug() << "Launch mav server";
 
     int rpc_port = default_rpc_port;
-
     for (int i = 1; i < argc; i++) {
         const std::string current_arg = argv[i];
 
@@ -49,8 +45,29 @@ int main(int argc, const char *argv[]) {
             }
             rpc_port = std::stoi(rpc_port_string);
             i++;
+        } else if (current_arg == "--log_path") {
+            if (argc <= i + 1) {
+                usage(argv[0]);
+                return 1;
+            }
+            default_log_path = std::string(argv[i + 1]);
+            i++;
+        } else if (current_arg == "--store_prefix") {
+            if (argc <= i + 1) {
+                usage(argv[0]);
+                return 1;
+            }
+            default_store_prefix = std::string(argv[i + 1]);
+            i++;
         }
     }
+
+    base::create_folder_if_not_exit(default_log_path);
+    init_log();
+    signal(SIGINT, signal_handler);
+    base::LogDebug() << "Launch mav server";
+    setenv("DEFAULT_STORE_PREFIX", default_store_prefix.c_str(), 1);
+    base::LogInfo() << "Store prefix is " << default_store_prefix;
 
     if (!server.init(rpc_port)) {
         std::cout << "Init rpc server failed";
@@ -76,7 +93,9 @@ void usage(const char *bin_name) {
               << "\t-r              : set the rpc port,"
               << "(default is " << default_rpc_port << ")\n"
               << "\t--log_path     : store output log to file path, default is " << default_log_path
-              << '\n';
+              << '\n'
+              << "\t--store_prefix : store folder and file prefix, default is "
+              << default_store_prefix << '\n';
 }
 
 static void init_log() {
