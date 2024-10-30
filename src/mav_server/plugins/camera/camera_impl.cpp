@@ -1,6 +1,7 @@
 #include "camera_impl.h"
 
 #include <dlfcn.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <iomanip>  // for std::setprecision
@@ -83,7 +84,18 @@ Camera::Result CameraImpl::prepare() {
     options.preview_v4l2_output = false;
     options.preview_weston_output = true;
 
-    options.init_mode = mav_camera::Mode::Photo;
+    auto camera_mode = mav_camera::Mode::Photo;
+    const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
+    if (init_camera_mode != NULL) {
+        if (strncmp(init_camera_mode, "0", 1) == 0) {
+            camera_mode = mav_camera::Mode::Photo;
+            base::LogInfo() << "Manually init camera to photo mode";
+        } else if (strncmp(init_camera_mode, "1", 1) == 0) {
+            camera_mode = mav_camera::Mode::Video;
+            base::LogInfo() << "Manually init camera to video mode";
+        }
+    }
+    options.init_mode = camera_mode;
 
     if (options.init_mode == mav_camera::Mode::Photo) {
         options.preview_width = kPreviewWidth;
@@ -101,11 +113,13 @@ Camera::Result CameraImpl::prepare() {
     options.framerate = _framerate;
     options.debug_calc_fps = false;
 
-    const char *store_prefix = getenv("DEFAULT_STORE_PREFIX");
+    const char *store_prefix = getenv("MAVCAM_DEFAULT_STORE_PREFIX");
     if (store_prefix == NULL) {
         base::LogWarn() << "No store prefix found";
+    } else {
+        options.store_prefix = store_prefix;
+        base::LogInfo() << "Set store prefix to " << options.store_prefix;
     }
-    options.store_prefix = store_prefix;
 
     mav_camera::Result result = _mav_camera->open(options);
     if (result == mav_camera::Result::Success) {

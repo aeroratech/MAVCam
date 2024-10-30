@@ -59,6 +59,18 @@ int main(int argc, const char *argv[]) {
             }
             default_store_prefix = std::string(argv[i + 1]);
             i++;
+        } else if (current_arg == "--camera_mode") {
+            if (argc <= i + 1) {
+                usage(argv[0]);
+                return 1;
+            }
+            auto camera_mode = std::string(argv[i + 1]);
+            i++;
+            if (camera_mode != "0" && camera_mode != "1") {
+                usage(argv[0]);
+                return 1;
+            }
+            setenv("MAVCAM_INIT_CAMERA_MODE", camera_mode.c_str(), 1);
         }
     }
 
@@ -66,8 +78,12 @@ int main(int argc, const char *argv[]) {
     init_log();
     signal(SIGINT, signal_handler);
     base::LogDebug() << "Launch mav server";
-    setenv("DEFAULT_STORE_PREFIX", default_store_prefix.c_str(), 1);
+    setenv("MAVCAM_DEFAULT_STORE_PREFIX", default_store_prefix.c_str(), 1);
     base::LogInfo() << "Store prefix is " << default_store_prefix;
+    const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
+    if (init_camera_mode != NULL) {
+        base::LogInfo() << "Init camera mode is " << init_camera_mode;
+    }
 
     if (!server.init(rpc_port)) {
         std::cout << "Init rpc server failed";
@@ -92,10 +108,11 @@ void usage(const char *bin_name) {
               << "\t-v | --version  : show version information " << '\n'
               << "\t-r              : set the rpc port,"
               << "(default is " << default_rpc_port << ")\n"
-              << "\t--log_path     : store output log to file path, default is " << default_log_path
-              << '\n'
-              << "\t--store_prefix : store folder and file prefix, default is "
-              << default_store_prefix << '\n';
+              << "\t--log_path      : store output log to file path, default is "
+              << default_log_path << '\n'
+              << "\t--store_prefix  : store folder and file prefix, default is "
+              << default_store_prefix << '\n'
+              << "\t--camera_mode   : init camera mode, 0 for photo mode 1 for video mode" << '\n';
 }
 
 static void init_log() {
