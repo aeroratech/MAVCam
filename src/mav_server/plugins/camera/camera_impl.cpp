@@ -109,7 +109,6 @@ Camera::Result CameraImpl::prepare() {
     options.video_width = kVideoWidth;
     options.video_height = kVideoHeight;
 
-    options.infrared_camera_path = "/dev/video2";
     options.framerate = _framerate;
     options.debug_calc_fps = false;
 
