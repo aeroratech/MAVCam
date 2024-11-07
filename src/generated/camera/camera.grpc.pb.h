@@ -276,6 +276,15 @@ class CameraService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetTimestampResponse>> PrepareAsyncSetTimestamp(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetTimestampResponse>>(PrepareAsyncSetTimestampRaw(context, request, cq));
     }
+    //
+    // set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
+    virtual ::grpc::Status SetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::mavcam::rpc::camera::SetZoomRangeResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetZoomRangeResponse>> AsyncSetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetZoomRangeResponse>>(AsyncSetZoomRangeRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetZoomRangeResponse>> PrepareAsyncSetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetZoomRangeResponse>>(PrepareAsyncSetZoomRangeRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -374,6 +383,10 @@ class CameraService final {
       // Set camera timestamp.
       virtual void SetTimestamp(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest* request, ::mavcam::rpc::camera::SetTimestampResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void SetTimestamp(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest* request, ::mavcam::rpc::camera::SetTimestampResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      //
+      // set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
+      virtual void SetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest* request, ::mavcam::rpc::camera::SetZoomRangeResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void SetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest* request, ::mavcam::rpc::camera::SetZoomRangeResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -432,6 +445,8 @@ class CameraService final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::ResetSettingsResponse>* PrepareAsyncResetSettingsRaw(::grpc::ClientContext* context, const ::mavcam::rpc::camera::ResetSettingsRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetTimestampResponse>* AsyncSetTimestampRaw(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetTimestampResponse>* PrepareAsyncSetTimestampRaw(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetZoomRangeResponse>* AsyncSetZoomRangeRaw(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetZoomRangeResponse>* PrepareAsyncSetZoomRangeRaw(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -611,6 +626,13 @@ class CameraService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::SetTimestampResponse>> PrepareAsyncSetTimestamp(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::SetTimestampResponse>>(PrepareAsyncSetTimestampRaw(context, request, cq));
     }
+    ::grpc::Status SetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::mavcam::rpc::camera::SetZoomRangeResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::SetZoomRangeResponse>> AsyncSetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::SetZoomRangeResponse>>(AsyncSetZoomRangeRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::SetZoomRangeResponse>> PrepareAsyncSetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::SetZoomRangeResponse>>(PrepareAsyncSetZoomRangeRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -653,6 +675,8 @@ class CameraService final {
       void ResetSettings(::grpc::ClientContext* context, const ::mavcam::rpc::camera::ResetSettingsRequest* request, ::mavcam::rpc::camera::ResetSettingsResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
       void SetTimestamp(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest* request, ::mavcam::rpc::camera::SetTimestampResponse* response, std::function<void(::grpc::Status)>) override;
       void SetTimestamp(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest* request, ::mavcam::rpc::camera::SetTimestampResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void SetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest* request, ::mavcam::rpc::camera::SetZoomRangeResponse* response, std::function<void(::grpc::Status)>) override;
+      void SetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest* request, ::mavcam::rpc::camera::SetZoomRangeResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -717,6 +741,8 @@ class CameraService final {
     ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::ResetSettingsResponse>* PrepareAsyncResetSettingsRaw(::grpc::ClientContext* context, const ::mavcam::rpc::camera::ResetSettingsRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::SetTimestampResponse>* AsyncSetTimestampRaw(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::SetTimestampResponse>* PrepareAsyncSetTimestampRaw(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::SetZoomRangeResponse>* AsyncSetZoomRangeRaw(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::mavcam::rpc::camera::SetZoomRangeResponse>* PrepareAsyncSetZoomRangeRaw(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_Prepare_;
     const ::grpc::internal::RpcMethod rpcmethod_TakePhoto_;
     const ::grpc::internal::RpcMethod rpcmethod_StartPhotoInterval_;
@@ -740,6 +766,7 @@ class CameraService final {
     const ::grpc::internal::RpcMethod rpcmethod_SelectCamera_;
     const ::grpc::internal::RpcMethod rpcmethod_ResetSettings_;
     const ::grpc::internal::RpcMethod rpcmethod_SetTimestamp_;
+    const ::grpc::internal::RpcMethod rpcmethod_SetZoomRange_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -826,6 +853,9 @@ class CameraService final {
     //
     // Set camera timestamp.
     virtual ::grpc::Status SetTimestamp(::grpc::ServerContext* context, const ::mavcam::rpc::camera::SetTimestampRequest* request, ::mavcam::rpc::camera::SetTimestampResponse* response);
+    //
+    // set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
+    virtual ::grpc::Status SetZoomRange(::grpc::ServerContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest* request, ::mavcam::rpc::camera::SetZoomRangeResponse* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_Prepare : public BaseClass {
@@ -1287,7 +1317,27 @@ class CameraService final {
       ::grpc::Service::RequestAsyncUnary(22, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_Prepare<WithAsyncMethod_TakePhoto<WithAsyncMethod_StartPhotoInterval<WithAsyncMethod_StopPhotoInterval<WithAsyncMethod_StartVideo<WithAsyncMethod_StopVideo<WithAsyncMethod_StartVideoStreaming<WithAsyncMethod_StopVideoStreaming<WithAsyncMethod_SetMode<WithAsyncMethod_ListPhotos<WithAsyncMethod_SubscribeMode<WithAsyncMethod_SubscribeInformation<WithAsyncMethod_SubscribeVideoStreamInfo<WithAsyncMethod_SubscribeCaptureInfo<WithAsyncMethod_SubscribeStatus<WithAsyncMethod_SubscribeCurrentSettings<WithAsyncMethod_SubscribePossibleSettingOptions<WithAsyncMethod_SetSetting<WithAsyncMethod_GetSetting<WithAsyncMethod_FormatStorage<WithAsyncMethod_SelectCamera<WithAsyncMethod_ResetSettings<WithAsyncMethod_SetTimestamp<Service > > > > > > > > > > > > > > > > > > > > > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_SetZoomRange : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_SetZoomRange() {
+      ::grpc::Service::MarkMethodAsync(23);
+    }
+    ~WithAsyncMethod_SetZoomRange() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status SetZoomRange(::grpc::ServerContext* /*context*/, const ::mavcam::rpc::camera::SetZoomRangeRequest* /*request*/, ::mavcam::rpc::camera::SetZoomRangeResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestSetZoomRange(::grpc::ServerContext* context, ::mavcam::rpc::camera::SetZoomRangeRequest* request, ::grpc::ServerAsyncResponseWriter< ::mavcam::rpc::camera::SetZoomRangeResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(23, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_Prepare<WithAsyncMethod_TakePhoto<WithAsyncMethod_StartPhotoInterval<WithAsyncMethod_StopPhotoInterval<WithAsyncMethod_StartVideo<WithAsyncMethod_StopVideo<WithAsyncMethod_StartVideoStreaming<WithAsyncMethod_StopVideoStreaming<WithAsyncMethod_SetMode<WithAsyncMethod_ListPhotos<WithAsyncMethod_SubscribeMode<WithAsyncMethod_SubscribeInformation<WithAsyncMethod_SubscribeVideoStreamInfo<WithAsyncMethod_SubscribeCaptureInfo<WithAsyncMethod_SubscribeStatus<WithAsyncMethod_SubscribeCurrentSettings<WithAsyncMethod_SubscribePossibleSettingOptions<WithAsyncMethod_SetSetting<WithAsyncMethod_GetSetting<WithAsyncMethod_FormatStorage<WithAsyncMethod_SelectCamera<WithAsyncMethod_ResetSettings<WithAsyncMethod_SetTimestamp<WithAsyncMethod_SetZoomRange<Service > > > > > > > > > > > > > > > > > > > > > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_Prepare : public BaseClass {
    private:
@@ -1874,7 +1924,34 @@ class CameraService final {
     virtual ::grpc::ServerUnaryReactor* SetTimestamp(
       ::grpc::CallbackServerContext* /*context*/, const ::mavcam::rpc::camera::SetTimestampRequest* /*request*/, ::mavcam::rpc::camera::SetTimestampResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_Prepare<WithCallbackMethod_TakePhoto<WithCallbackMethod_StartPhotoInterval<WithCallbackMethod_StopPhotoInterval<WithCallbackMethod_StartVideo<WithCallbackMethod_StopVideo<WithCallbackMethod_StartVideoStreaming<WithCallbackMethod_StopVideoStreaming<WithCallbackMethod_SetMode<WithCallbackMethod_ListPhotos<WithCallbackMethod_SubscribeMode<WithCallbackMethod_SubscribeInformation<WithCallbackMethod_SubscribeVideoStreamInfo<WithCallbackMethod_SubscribeCaptureInfo<WithCallbackMethod_SubscribeStatus<WithCallbackMethod_SubscribeCurrentSettings<WithCallbackMethod_SubscribePossibleSettingOptions<WithCallbackMethod_SetSetting<WithCallbackMethod_GetSetting<WithCallbackMethod_FormatStorage<WithCallbackMethod_SelectCamera<WithCallbackMethod_ResetSettings<WithCallbackMethod_SetTimestamp<Service > > > > > > > > > > > > > > > > > > > > > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_SetZoomRange : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_SetZoomRange() {
+      ::grpc::Service::MarkMethodCallback(23,
+          new ::grpc::internal::CallbackUnaryHandler< ::mavcam::rpc::camera::SetZoomRangeRequest, ::mavcam::rpc::camera::SetZoomRangeResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest* request, ::mavcam::rpc::camera::SetZoomRangeResponse* response) { return this->SetZoomRange(context, request, response); }));}
+    void SetMessageAllocatorFor_SetZoomRange(
+        ::grpc::MessageAllocator< ::mavcam::rpc::camera::SetZoomRangeRequest, ::mavcam::rpc::camera::SetZoomRangeResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(23);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::mavcam::rpc::camera::SetZoomRangeRequest, ::mavcam::rpc::camera::SetZoomRangeResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_SetZoomRange() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status SetZoomRange(::grpc::ServerContext* /*context*/, const ::mavcam::rpc::camera::SetZoomRangeRequest* /*request*/, ::mavcam::rpc::camera::SetZoomRangeResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* SetZoomRange(
+      ::grpc::CallbackServerContext* /*context*/, const ::mavcam::rpc::camera::SetZoomRangeRequest* /*request*/, ::mavcam::rpc::camera::SetZoomRangeResponse* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_Prepare<WithCallbackMethod_TakePhoto<WithCallbackMethod_StartPhotoInterval<WithCallbackMethod_StopPhotoInterval<WithCallbackMethod_StartVideo<WithCallbackMethod_StopVideo<WithCallbackMethod_StartVideoStreaming<WithCallbackMethod_StopVideoStreaming<WithCallbackMethod_SetMode<WithCallbackMethod_ListPhotos<WithCallbackMethod_SubscribeMode<WithCallbackMethod_SubscribeInformation<WithCallbackMethod_SubscribeVideoStreamInfo<WithCallbackMethod_SubscribeCaptureInfo<WithCallbackMethod_SubscribeStatus<WithCallbackMethod_SubscribeCurrentSettings<WithCallbackMethod_SubscribePossibleSettingOptions<WithCallbackMethod_SetSetting<WithCallbackMethod_GetSetting<WithCallbackMethod_FormatStorage<WithCallbackMethod_SelectCamera<WithCallbackMethod_ResetSettings<WithCallbackMethod_SetTimestamp<WithCallbackMethod_SetZoomRange<Service > > > > > > > > > > > > > > > > > > > > > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_Prepare : public BaseClass {
@@ -2263,6 +2340,23 @@ class CameraService final {
     }
     // disable synchronous version of this method
     ::grpc::Status SetTimestamp(::grpc::ServerContext* /*context*/, const ::mavcam::rpc::camera::SetTimestampRequest* /*request*/, ::mavcam::rpc::camera::SetTimestampResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_SetZoomRange : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_SetZoomRange() {
+      ::grpc::Service::MarkMethodGeneric(23);
+    }
+    ~WithGenericMethod_SetZoomRange() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status SetZoomRange(::grpc::ServerContext* /*context*/, const ::mavcam::rpc::camera::SetZoomRangeRequest* /*request*/, ::mavcam::rpc::camera::SetZoomRangeResponse* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -2725,6 +2819,26 @@ class CameraService final {
     }
     void RequestSetTimestamp(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(22, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_SetZoomRange : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_SetZoomRange() {
+      ::grpc::Service::MarkMethodRaw(23);
+    }
+    ~WithRawMethod_SetZoomRange() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status SetZoomRange(::grpc::ServerContext* /*context*/, const ::mavcam::rpc::camera::SetZoomRangeRequest* /*request*/, ::mavcam::rpc::camera::SetZoomRangeResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestSetZoomRange(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(23, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -3234,6 +3348,28 @@ class CameraService final {
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
+  class WithRawCallbackMethod_SetZoomRange : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_SetZoomRange() {
+      ::grpc::Service::MarkMethodRawCallback(23,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->SetZoomRange(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_SetZoomRange() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status SetZoomRange(::grpc::ServerContext* /*context*/, const ::mavcam::rpc::camera::SetZoomRangeRequest* /*request*/, ::mavcam::rpc::camera::SetZoomRangeResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* SetZoomRange(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
   class WithStreamedUnaryMethod_Prepare : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
@@ -3665,7 +3801,34 @@ class CameraService final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedSetTimestamp(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::mavcam::rpc::camera::SetTimestampRequest,::mavcam::rpc::camera::SetTimestampResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_Prepare<WithStreamedUnaryMethod_TakePhoto<WithStreamedUnaryMethod_StartPhotoInterval<WithStreamedUnaryMethod_StopPhotoInterval<WithStreamedUnaryMethod_StartVideo<WithStreamedUnaryMethod_StopVideo<WithStreamedUnaryMethod_StartVideoStreaming<WithStreamedUnaryMethod_StopVideoStreaming<WithStreamedUnaryMethod_SetMode<WithStreamedUnaryMethod_ListPhotos<WithStreamedUnaryMethod_SetSetting<WithStreamedUnaryMethod_GetSetting<WithStreamedUnaryMethod_FormatStorage<WithStreamedUnaryMethod_SelectCamera<WithStreamedUnaryMethod_ResetSettings<WithStreamedUnaryMethod_SetTimestamp<Service > > > > > > > > > > > > > > > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_SetZoomRange : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_SetZoomRange() {
+      ::grpc::Service::MarkMethodStreamed(23,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::mavcam::rpc::camera::SetZoomRangeRequest, ::mavcam::rpc::camera::SetZoomRangeResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::mavcam::rpc::camera::SetZoomRangeRequest, ::mavcam::rpc::camera::SetZoomRangeResponse>* streamer) {
+                       return this->StreamedSetZoomRange(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_SetZoomRange() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status SetZoomRange(::grpc::ServerContext* /*context*/, const ::mavcam::rpc::camera::SetZoomRangeRequest* /*request*/, ::mavcam::rpc::camera::SetZoomRangeResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedSetZoomRange(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::mavcam::rpc::camera::SetZoomRangeRequest,::mavcam::rpc::camera::SetZoomRangeResponse>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_Prepare<WithStreamedUnaryMethod_TakePhoto<WithStreamedUnaryMethod_StartPhotoInterval<WithStreamedUnaryMethod_StopPhotoInterval<WithStreamedUnaryMethod_StartVideo<WithStreamedUnaryMethod_StopVideo<WithStreamedUnaryMethod_StartVideoStreaming<WithStreamedUnaryMethod_StopVideoStreaming<WithStreamedUnaryMethod_SetMode<WithStreamedUnaryMethod_ListPhotos<WithStreamedUnaryMethod_SetSetting<WithStreamedUnaryMethod_GetSetting<WithStreamedUnaryMethod_FormatStorage<WithStreamedUnaryMethod_SelectCamera<WithStreamedUnaryMethod_ResetSettings<WithStreamedUnaryMethod_SetTimestamp<WithStreamedUnaryMethod_SetZoomRange<Service > > > > > > > > > > > > > > > > > StreamedUnaryService;
   template <class BaseClass>
   class WithSplitStreamingMethod_SubscribeMode : public BaseClass {
    private:
@@ -3856,7 +4019,7 @@ class CameraService final {
     virtual ::grpc::Status StreamedSubscribePossibleSettingOptions(::grpc::ServerContext* context, ::grpc::ServerSplitStreamer< ::mavcam::rpc::camera::SubscribePossibleSettingOptionsRequest,::mavcam::rpc::camera::PossibleSettingOptionsResponse>* server_split_streamer) = 0;
   };
   typedef WithSplitStreamingMethod_SubscribeMode<WithSplitStreamingMethod_SubscribeInformation<WithSplitStreamingMethod_SubscribeVideoStreamInfo<WithSplitStreamingMethod_SubscribeCaptureInfo<WithSplitStreamingMethod_SubscribeStatus<WithSplitStreamingMethod_SubscribeCurrentSettings<WithSplitStreamingMethod_SubscribePossibleSettingOptions<Service > > > > > > > SplitStreamedService;
-  typedef WithStreamedUnaryMethod_Prepare<WithStreamedUnaryMethod_TakePhoto<WithStreamedUnaryMethod_StartPhotoInterval<WithStreamedUnaryMethod_StopPhotoInterval<WithStreamedUnaryMethod_StartVideo<WithStreamedUnaryMethod_StopVideo<WithStreamedUnaryMethod_StartVideoStreaming<WithStreamedUnaryMethod_StopVideoStreaming<WithStreamedUnaryMethod_SetMode<WithStreamedUnaryMethod_ListPhotos<WithSplitStreamingMethod_SubscribeMode<WithSplitStreamingMethod_SubscribeInformation<WithSplitStreamingMethod_SubscribeVideoStreamInfo<WithSplitStreamingMethod_SubscribeCaptureInfo<WithSplitStreamingMethod_SubscribeStatus<WithSplitStreamingMethod_SubscribeCurrentSettings<WithSplitStreamingMethod_SubscribePossibleSettingOptions<WithStreamedUnaryMethod_SetSetting<WithStreamedUnaryMethod_GetSetting<WithStreamedUnaryMethod_FormatStorage<WithStreamedUnaryMethod_SelectCamera<WithStreamedUnaryMethod_ResetSettings<WithStreamedUnaryMethod_SetTimestamp<Service > > > > > > > > > > > > > > > > > > > > > > > StreamedService;
+  typedef WithStreamedUnaryMethod_Prepare<WithStreamedUnaryMethod_TakePhoto<WithStreamedUnaryMethod_StartPhotoInterval<WithStreamedUnaryMethod_StopPhotoInterval<WithStreamedUnaryMethod_StartVideo<WithStreamedUnaryMethod_StopVideo<WithStreamedUnaryMethod_StartVideoStreaming<WithStreamedUnaryMethod_StopVideoStreaming<WithStreamedUnaryMethod_SetMode<WithStreamedUnaryMethod_ListPhotos<WithSplitStreamingMethod_SubscribeMode<WithSplitStreamingMethod_SubscribeInformation<WithSplitStreamingMethod_SubscribeVideoStreamInfo<WithSplitStreamingMethod_SubscribeCaptureInfo<WithSplitStreamingMethod_SubscribeStatus<WithSplitStreamingMethod_SubscribeCurrentSettings<WithSplitStreamingMethod_SubscribePossibleSettingOptions<WithStreamedUnaryMethod_SetSetting<WithStreamedUnaryMethod_GetSetting<WithStreamedUnaryMethod_FormatStorage<WithStreamedUnaryMethod_SelectCamera<WithStreamedUnaryMethod_ResetSettings<WithStreamedUnaryMethod_SetTimestamp<WithStreamedUnaryMethod_SetZoomRange<Service > > > > > > > > > > > > > > > > > > > > > > > > StreamedService;
 };
 
 }  // namespace camera

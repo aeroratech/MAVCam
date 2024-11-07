@@ -255,6 +255,15 @@ public:
      * @return Result of request.
      */
     Camera::Result set_timestamp(int64_t timestamp);
+
+    /**
+     * @brief set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
+     *
+     * This function is blocking.
+     *
+     * @return Result of request.
+     */
+    Camera::Result set_zoom_range(float range) const;
 private:
     /**
      * @brief close camera and release resource

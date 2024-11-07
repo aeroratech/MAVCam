@@ -243,6 +243,24 @@ mavsdk::CameraServer::Result CameraRpcClient::set_timestamp(int64_t time_unix_ms
     return translateFromRpcResult(response.camera_result().result());
 }
 
+mavsdk::CameraServer::Result CameraRpcClient::set_zoom_range(float range) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    base::LogDebug() << "rpc call set zoom range " << range;
+
+    mavcam::rpc::camera::SetZoomRangeRequest request;
+    request.set_range(range);
+    grpc::ClientContext context;
+    mavcam::rpc::camera::SetZoomRangeResponse response;
+    grpc::Status status = _stub->SetZoomRange(&context, request, &response);
+    if (!status.ok()) {
+        base::LogError() << "call rpc set_zoom_range failed with errorcode: "
+                         << status.error_code();
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
+    base::LogDebug() << "Set zoom range result : " << response.camera_result().result_str();
+    return translateFromRpcResult(response.camera_result().result());
+}
+
 mavsdk::CameraServer::Result CameraRpcClient::fill_information(
     mavsdk::CameraServer::Information &information) {
     if (!_init_information) {

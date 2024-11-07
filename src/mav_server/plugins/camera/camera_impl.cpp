@@ -307,6 +307,7 @@ Camera::Information CameraImpl::information() const {
     out_info.camera_cap_flags.emplace_back(Camera::Information::CameraCapFlags::CaptureVideo);
     out_info.camera_cap_flags.emplace_back(Camera::Information::CameraCapFlags::HasModes);
     out_info.camera_cap_flags.emplace_back(Camera::Information::CameraCapFlags::HasVideoStream);
+    out_info.camera_cap_flags.emplace_back(Camera::Information::CameraCapFlags::HasBasicZoom);
 
     return out_info;
 }
@@ -530,6 +531,14 @@ Camera::Result CameraImpl::set_timestamp(int64_t timestamp) {
     base::LogDebug() << "call set_timestamp " << timestamp;
     if (_mav_camera != nullptr) {
         _mav_camera->set_timestamp(timestamp);
+    }
+    return Camera::Result::Success;
+}
+
+Camera::Result CameraImpl::set_zoom_range(float range) const {
+    base::LogDebug() << "call set zoom range " << range;
+    if (_mav_camera != nullptr) {
+        _mav_camera->set_zoom(range);
     }
     return Camera::Result::Success;
 }

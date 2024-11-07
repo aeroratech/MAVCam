@@ -147,6 +147,10 @@ Camera::Result Camera::set_timestamp(int64_t timestamp) const {
     return _impl->set_timestamp(timestamp);
 }
 
+Camera::Result Camera::set_zoom_range(float range) const {
+    return _impl->set_zoom_range(range);
+}
+
 std::ostream &operator<<(std::ostream &str, Camera::Result const &result) {
     switch (result) {
         case Camera::Result::Unknown:

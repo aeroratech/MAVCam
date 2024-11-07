@@ -28,6 +28,7 @@ public:  // operation
     virtual mavsdk::CameraServer::Result format_storage(int storage_id) override;
     virtual mavsdk::CameraServer::Result reset_settings() override;
     virtual mavsdk::CameraServer::Result set_timestamp(int64_t time_unix_msec) override;
+    virtual mavsdk::CameraServer::Result set_zoom_range(float range) override;
 public:  // subscribe
     virtual mavsdk::CameraServer::Result fill_information(
         mavsdk::CameraServer::Information &information) override;

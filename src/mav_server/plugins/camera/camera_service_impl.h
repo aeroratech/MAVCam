@@ -1231,6 +1231,23 @@ public:
         return ::grpc::Status::OK;
     }
 
+    grpc::Status SetZoomRange(grpc::ServerContext * /* context */,
+                              const mavcam::rpc::camera::SetZoomRangeRequest *request,
+                              mavcam::rpc::camera::SetZoomRangeResponse *response) override {
+        if (request == nullptr) {
+            base::LogWarn() << "SetZoomRange sent with a null request! Ignoring...";
+            return grpc::Status::OK;
+        }
+
+        auto result = _plugin->set_zoom_range(request->range());
+
+        if (response != nullptr) {
+            fillResponseWithResult(response, result);
+        }
+
+        return ::grpc::Status::OK;
+    }
+
     void stop() {
         _stopped.store(true);
         for (auto &prom : _stream_stop_promises) {

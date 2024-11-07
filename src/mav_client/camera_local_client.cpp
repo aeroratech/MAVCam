@@ -120,6 +120,11 @@ mavsdk::CameraServer::Result CameraLocalClient::set_timestamp(int64_t time_unix_
     return mavsdk::CameraServer::Result::Denied;
 }
 
+mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
+    base::LogDebug() << "local call set zoom range " << range;
+    return mavsdk::CameraServer::Result::Denied;
+}
+
 mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     mavsdk::CameraServer::Information &information) {
     information.vendor_name = "Aeroratech";

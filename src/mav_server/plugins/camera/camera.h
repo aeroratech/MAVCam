@@ -779,6 +779,15 @@ public:
     Result set_timestamp(int64_t timestamp) const;
 
     /**
+     * @brief set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
+     *
+     * This function is blocking.
+     *
+     * @return Result of request.
+     */
+    Result set_zoom_range(float range) const;
+
+    /**
      * @brief Copy constructor.
      */
     Camera(const Camera &other) = delete;
