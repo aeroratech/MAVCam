@@ -310,13 +310,9 @@ private:
      */
     bool set_video_resolution(std::string value);
     /**
-     * @brief convert mav_camera::Result to mavcam::Camera::Result
+     * @brief set metering mode
      */
-    Camera::Result convert_camera_result_to_mav_result(mav_camera::Result input_result);
-    /**
-     * @brief stop video async
-     */
-    void stop_video_async();
+    bool set_metering_mode(std::string value);
     /**
      * @brief init ir camera
      */
@@ -333,6 +329,15 @@ private:
      * @brief execute ir camera FFC
      */
     bool set_ir_FFC(std::string ignore);
+private:
+    /**
+     * @brief stop video async
+     */
+    void stop_video_async();
+    /**
+     * @brief convert mav_camera::Result to mavcam::Camera::Result
+     */
+    Camera::Result convert_camera_result_to_mav_result(mav_camera::Result input_result);
 private:
     Camera::ModeCallback _camera_mode_callback;
     Camera::CaptureInfoCallback _capture_info_callback;

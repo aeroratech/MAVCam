@@ -21,6 +21,7 @@ const std::string kExposureMode = "CAM_EXPMODE";
 const std::string kEVName = "CAM_EV";
 const std::string kISOName = "CAM_ISO";
 const std::string kShutterSpeedName = "CAM_SHUTTERSPD";
+const std::string kMeteringModeName = "CAM_METER";
 
 const std::string kIrCamPalette = "IRCAM_PALETTE";
 const std::string kIrCamFFC = "IRCAM_FFC";
@@ -154,6 +155,7 @@ Camera::Result CameraImpl::prepare() {
     _settings.emplace_back(build_setting(kVideoFormat, "1"));
     std::string video_resolution = get_video_resolution();
     _settings.emplace_back(build_setting(kVideoResolution, video_resolution));
+    _settings.emplace_back(build_setting(kMeteringModeName, "0"));
 
     auto ir_result = init_ir_camera();
     if (ir_result) {
@@ -286,7 +288,7 @@ Camera::Information CameraImpl::information() const {
         out_info.vertical_resolution_px = in_info.vertical_resolution_px;
         out_info.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        out_info.definition_file_version = 5;
+        out_info.definition_file_version = 6;
         out_info.definition_file_uri = "mftp://definition/D64TR.xml";
 
     } else {
@@ -465,6 +467,8 @@ Camera::Result CameraImpl::set_setting(Camera::Setting setting) {
         set_success = result == mav_camera::Result::Success;
     } else if (setting.setting_id == kVideoResolution) {
         set_success = set_video_resolution(setting.option.option_id);
+    } else if (setting.setting_id == kMeteringModeName) {
+        set_success = set_metering_mode(setting.option.option_id);
     } else if (setting.setting_id == kIrCamPalette) {
         set_success = set_ir_palette(setting.option.option_id);
     } else if (setting.setting_id == kIrCamFFC) {
@@ -769,42 +773,17 @@ bool CameraImpl::set_video_resolution(std::string value) {
     return result == mav_camera::Result::Success;
 }
 
-Camera::Result CameraImpl::convert_camera_result_to_mav_result(mav_camera::Result input_result) {
-    Camera::Result output_result = Camera::Result::Unknown;
-    switch (input_result) {
-        case mav_camera::Result::Success:
-            output_result = Camera::Result::Success;
-            break;
-        case mav_camera::Result::Denied:
-            output_result = Camera::Result::Denied;
-            break;
-        case mav_camera::Result::Busy:
-            output_result = Camera::Result::Busy;
-            break;
-        case mav_camera::Result::Error:
-            output_result = Camera::Result::Error;
-            break;
-        case mav_camera::Result::InProgress:
-            output_result = Camera::Result::InProgress;
-            break;
-        case mav_camera::Result::NoSystem:
-            output_result = Camera::Result::NoSystem;
-            break;
-        case mav_camera::Result::Timeout:
-            output_result = Camera::Result::Timeout;
-            break;
-        case mav_camera::Result::Unknown:
-            output_result = Camera::Result::Unknown;
-            break;
-        case mav_camera::Result::WrongArgument:
-            output_result = Camera::Result::WrongArgument;
-            break;
+bool CameraImpl::set_metering_mode(std::string value) {
+    int32_t metering_mode = std::stoi(value);
+    if (metering_mode < 0 || metering_mode > 4) {
+        base::LogError() << "Invalid metering mode";
+        return false;
     }
-    return output_result;
-}
-
-void CameraImpl::stop_video_async() {
-    _mav_camera->stop_video();
+    auto result = _mav_camera->set_metering_mode(metering_mode);
+    if (result != mav_camera::Result::Success) {
+        base::LogError() << "Failed to set metering mode : " << metering_mode;
+    }
+    return result == mav_camera::Result::Success;
 }
 
 bool CameraImpl::init_ir_camera() {
@@ -893,6 +872,44 @@ bool CameraImpl::set_ir_FFC(std::string /*ignore*/) {
         return result == 0;
     }
     return false;
+}
+
+void CameraImpl::stop_video_async() {
+    _mav_camera->stop_video();
+}
+
+Camera::Result CameraImpl::convert_camera_result_to_mav_result(mav_camera::Result input_result) {
+    Camera::Result output_result = Camera::Result::Unknown;
+    switch (input_result) {
+        case mav_camera::Result::Success:
+            output_result = Camera::Result::Success;
+            break;
+        case mav_camera::Result::Denied:
+            output_result = Camera::Result::Denied;
+            break;
+        case mav_camera::Result::Busy:
+            output_result = Camera::Result::Busy;
+            break;
+        case mav_camera::Result::Error:
+            output_result = Camera::Result::Error;
+            break;
+        case mav_camera::Result::InProgress:
+            output_result = Camera::Result::InProgress;
+            break;
+        case mav_camera::Result::NoSystem:
+            output_result = Camera::Result::NoSystem;
+            break;
+        case mav_camera::Result::Timeout:
+            output_result = Camera::Result::Timeout;
+            break;
+        case mav_camera::Result::Unknown:
+            output_result = Camera::Result::Unknown;
+            break;
+        case mav_camera::Result::WrongArgument:
+            output_result = Camera::Result::WrongArgument;
+            break;
+    }
+    return output_result;
 }
 
 }  // namespace mavcam

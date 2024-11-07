@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="5">
+    <definition version="6">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -188,6 +188,13 @@
             <options>
                 <option name="H264" value="1" />
                 <option name="HEVC" value="2" />
+            </options>
+        </parameter>
+        <parameter name="CAM_METER" type="int32" default="0">
+            <description>Metering Mode</description>
+            <options>
+                <option name="Multi" value="0" />
+                <option name="Center" value="1" />
             </options>
         </parameter>
         <!-- IR Camera Param -->

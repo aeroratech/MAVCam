@@ -14,8 +14,8 @@ CameraLocalClient::CameraLocalClient() {
     _image_count = 0;
     _is_recording_video = false;
 
-    _total_storage_mib = 4 * 1024;
-    _available_storage_mib = 3 * 1024;
+    _total_storage_mib = 4 * 1024 * 1024;
+    _available_storage_mib = 3 * 1024 * 1024;
 
     // TODO just demo for settings
     _settings[kCameraModeName] = "0";
@@ -30,6 +30,7 @@ CameraLocalClient::CameraLocalClient() {
     _settings["CAM_VIDRES"] = "0";
     _settings["CAM_VIDFMT"] = "0";
     _settings["CAM_PHOTORATIO"] = "1";
+    _settings["CAM_METER"] = "0";
     _settings["IRCAM_PALETTE"] = "1";
     _settings["IRCAM_FFC"] = "0";
 }
@@ -109,6 +110,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
     _settings["CAM_VIDFMT"] = "1";
     _settings["CAM_VIDRES"] = "0";
     _settings["CAM_PHOTORATIO"] = "1";
+    _settings["CAM_METER"] = "0";
     _settings["IRCAM_PALETTE"] = "1";
     _settings["IRCAM_FFC"] = "0";
 
@@ -128,7 +130,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
 mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     mavsdk::CameraServer::Information &information) {
     information.vendor_name = "Aeroratech";
-    information.model_name = "D64TR.xml";
+    information.model_name = "D64TR";
     information.firmware_version = "0.0.1";
     information.focal_length_mm = 3.0;
     information.horizontal_sensor_size_mm = 3.68;
@@ -136,8 +138,10 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     information.horizontal_resolution_px = 3280;
     information.vertical_resolution_px = 2464;
     information.lens_id = 0;
-    information.definition_file_version = 5;
+
+    information.definition_file_version = 6;
     information.definition_file_uri = "mftp://definition/D64TR.xml";
+
     information.camera_cap_flags.emplace_back(
         mavsdk::CameraServer::Information::CameraCapFlags::CaptureImage);
     information.camera_cap_flags.emplace_back(
@@ -146,6 +150,8 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         mavsdk::CameraServer::Information::CameraCapFlags::HasModes);
     information.camera_cap_flags.emplace_back(
         mavsdk::CameraServer::Information::CameraCapFlags::HasVideoStream);
+    information.camera_cap_flags.emplace_back(
+        mavsdk::CameraServer::Information::CameraCapFlags::HasBasicZoom);
     return mavsdk::CameraServer::Result::Success;
 }
 
@@ -161,7 +167,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_video_stream_info(
     normal_video_stream.settings.vertical_resolution_pix = 1080;
     normal_video_stream.settings.bit_rate_b_s = 4 * 1024 * 1024;
     normal_video_stream.settings.rotation_deg = 0;
-    normal_video_stream.settings.uri = "udp://192.168.10.64:5600";
+    normal_video_stream.settings.uri = "rtsp://192.168.251.1/live";
     normal_video_stream.settings.horizontal_fov_deg = 0;
     normal_video_stream.status =
         mavsdk::CameraServer::VideoStreamInfo::VideoStreamStatus::InProgress;
