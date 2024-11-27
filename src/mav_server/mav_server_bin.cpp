@@ -1,6 +1,7 @@
 #include <csignal>
 #include <fstream>
 #include <iostream>
+#include <regex>
 
 #include "base/file_operation.h"
 #include "base/log.h"
@@ -71,6 +72,21 @@ int main(int argc, const char *argv[]) {
                 return 1;
             }
             setenv("MAVCAM_INIT_CAMERA_MODE", camera_mode.c_str(), 1);
+        } else if (current_arg == "--snapshot_resolution") {
+            if (argc <= i + 1) {
+                usage(argv[0]);
+                return 1;
+            }
+            auto snapshot_resolution = std::string(argv[i + 1]);
+            std::regex resolutionRegex(R"(^\d+x\d+$)");
+            if (!std::regex_match(snapshot_resolution, resolutionRegex)) {
+                std::cout << "Invalid snapshot resolution " << snapshot_resolution;
+            }
+            i++;
+            setenv("MAVCAM_INIT_SNAPSHOT_RES", snapshot_resolution.c_str(), 1);
+        } else {
+            usage(argv[0]);
+            return 1;
         }
     }
 
@@ -83,6 +99,10 @@ int main(int argc, const char *argv[]) {
     const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
     if (init_camera_mode != NULL) {
         base::LogInfo() << "Init camera mode is " << init_camera_mode;
+    }
+    const char *init_snapshot_resolution = getenv("MAVCAM_INIT_SNAPSHOT_RES");
+    if (init_snapshot_resolution != NULL) {
+        base::LogInfo() << "Init camera snapshot resolution is " << init_snapshot_resolution;
     }
 
     if (!server.init(rpc_port)) {
@@ -112,7 +132,8 @@ void usage(const char *bin_name) {
               << default_log_path << '\n'
               << "\t--store_prefix  : store folder and file prefix, default is "
               << default_store_prefix << '\n'
-              << "\t--camera_mode   : init camera mode, 0 for photo mode 1 for video mode" << '\n';
+              << "\t--camera_mode   : init camera mode, 0 for photo mode 1 for video mode" << '\n'
+              << "\t--snapshot_resolution : init snapshot resoltuion" << '\n';
 }
 
 static void init_log() {
