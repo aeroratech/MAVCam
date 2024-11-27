@@ -27,16 +27,16 @@ const std::string kMeteringModeName = "CAM_METER";
 const std::string kIrCamPalette = "IRCAM_PALETTE";
 const std::string kIrCamFFC = "IRCAM_FFC";
 
-const int32_t kPreviewWidth = 1920;
-const int32_t kPreviewPhotoHeight = 1440;
-const int32_t kPreviewVideoHeight = 1080;
+static const int32_t kPreviewWidth = 1920;
+static const int32_t kPreviewPhotoHeight = 1440;
+static const int32_t kPreviewVideoHeight = 1080;
 
-int32_t kSnapshotWidth = 9248;
-int32_t kSnapshotHeight = 6944;
-int32_t kSnapshotHalfWidth = 4624;
-int32_t kSnapshotHalfHeight = 3472;
-const int32_t kVideoWidth = 3840;
-const int32_t kVideoHeight = 2160;
+static int32_t kSnapshotWidth = 1920;
+static int32_t kSnapshotHeight = 1440;
+static int32_t kSnapshotHalfWidth = 1920;
+static int32_t kSnapshotHalfHeight = 1440;
+static const int32_t kVideoWidth = 3840;
+static const int32_t kVideoHeight = 2160;
 
 #define QCOM_CAMERA_LIBERAY "libqcom_camera.so"
 #define BOSON_CAMERA_LIBRARY "libboson-sdk-clientfiles_64.so"
@@ -80,6 +80,11 @@ Camera::Result CameraImpl::prepare() {
     }
 
     _mav_camera->set_log_path("/data/camera/qcom_cam.log");
+    mav_camera::Result result = _mav_camera->prepare();
+    if (result != mav_camera::Result::Success) {
+        base::LogDebug() << "cannot find qcom camera";
+        return Camera::Result::Error;
+    }
 
     mav_camera::Options options;
     options.preview_drm_output = false;
@@ -118,9 +123,20 @@ Camera::Result CameraImpl::prepare() {
             _settings.emplace_back(build_setting(kPhotoResolution, "0"));
         }
     } else {
-        options.snapshot_width = kSnapshotHalfWidth;
-        options.snapshot_height = kSnapshotHalfHeight;
-        _settings.emplace_back(build_setting(kPhotoResolution, "1"));  // 1 for 1/4 resolution
+        int32_t snapshot_width = 0;
+        int32_t snpashot_height = 0;
+        std::tie(result, kSnapshotWidth, kSnapshotHeight) = _mav_camera->get_snapshot_resolution();
+        kSnapshotHalfWidth = kSnapshotWidth / 2;
+        kSnapshotHalfHeight = kSnapshotHeight / 2;
+        if (kSnapshotWidth > 8000) {  // for 64M mode, use half width and height
+            options.snapshot_width = kSnapshotHalfWidth;
+            options.snapshot_height = kSnapshotHalfHeight;
+            _settings.emplace_back(build_setting(kPhotoResolution, "1"));  // 1 for 1/4 resolution
+        } else {
+            options.snapshot_width = kSnapshotWidth;
+            options.snapshot_height = kSnapshotHeight;
+            _settings.emplace_back(build_setting(kPhotoResolution, "0"));
+        }
     }
 
     if (options.init_mode == mav_camera::Mode::Photo) {
@@ -145,7 +161,7 @@ Camera::Result CameraImpl::prepare() {
         base::LogInfo() << "Set store prefix to " << options.store_prefix;
     }
 
-    mav_camera::Result result = _mav_camera->open(options);
+    result = _mav_camera->open(options);
     if (result == mav_camera::Result::Success) {
         base::LogDebug() << "open qcom camera success";
     }

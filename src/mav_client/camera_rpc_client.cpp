@@ -183,7 +183,7 @@ mavsdk::CameraServer::Result CameraRpcClient::set_mode(mavsdk::CameraServer::Mod
     }
     _current_mode = mode;
     base::LogDebug() << " Set mode to " << mode
-                     << "result : " << response.camera_result().result_str();
+                     << " result : " << response.camera_result().result_str();
     return translateFromRpcResult(response.camera_result().result());
 }
 
