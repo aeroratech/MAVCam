@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include <iomanip>  // for std::setprecision
+#include <regex>
 #include <thread>
 
 #include "base/log.h"
@@ -30,10 +31,10 @@ const int32_t kPreviewWidth = 1920;
 const int32_t kPreviewPhotoHeight = 1440;
 const int32_t kPreviewVideoHeight = 1080;
 
-const int32_t kSnapshotWidth = 9248;
-const int32_t kSnapshotHeight = 6944;
-const int32_t kSnapshotHalfWidth = 4624;
-const int32_t kSnapshotHalfHeight = 3472;
+int32_t kSnapshotWidth = 9248;
+int32_t kSnapshotHeight = 6944;
+int32_t kSnapshotHalfWidth = 4624;
+int32_t kSnapshotHalfHeight = 3472;
 const int32_t kVideoWidth = 3840;
 const int32_t kVideoHeight = 2160;
 
@@ -98,6 +99,30 @@ Camera::Result CameraImpl::prepare() {
     }
     options.init_mode = camera_mode;
 
+    const char *init_snapshot_resoltuion = getenv("MAVCAM_INIT_SNAPSHOT_RES");
+    if (init_snapshot_resoltuion != NULL) {
+        std::regex resolutionRegex(R"(^(\d+)x(\d+)$)");
+        std::smatch match;
+        const auto str_snapshot_resoltuion = std::string(init_snapshot_resoltuion);
+        if (std::regex_match(str_snapshot_resoltuion, match, resolutionRegex)) {
+            // Extract width and height from the match results
+            kSnapshotWidth = std::stoi(match[1].str());
+            kSnapshotHeight = std::stoi(match[2].str());
+
+            kSnapshotHalfWidth = kSnapshotWidth / 2;
+            kSnapshotHalfHeight = kSnapshotHeight / 2;
+
+            // for manually set snapshot resolution, not use half snapshot resolution
+            options.snapshot_width = kSnapshotWidth;
+            options.snapshot_height = kSnapshotHeight;
+            _settings.emplace_back(build_setting(kPhotoResolution, "0"));
+        }
+    } else {
+        options.snapshot_width = kSnapshotHalfWidth;
+        options.snapshot_height = kSnapshotHalfHeight;
+        _settings.emplace_back(build_setting(kPhotoResolution, "1"));  // 1 for 1/4 resolution
+    }
+
     if (options.init_mode == mav_camera::Mode::Photo) {
         options.preview_width = kPreviewWidth;
         options.preview_height = kPreviewPhotoHeight;
@@ -105,8 +130,7 @@ Camera::Result CameraImpl::prepare() {
         options.preview_width = kPreviewWidth;
         options.preview_height = kPreviewPhotoHeight;
     }
-    options.snapshot_width = kSnapshotHalfWidth;
-    options.snapshot_height = kSnapshotHalfHeight;
+
     options.video_width = kVideoWidth;
     options.video_height = kVideoHeight;
 
@@ -141,7 +165,6 @@ Camera::Result CameraImpl::prepare() {
     // get all settings
     auto display_mode = get_camera_display_mode();
     _settings.emplace_back(build_setting(kCameraDisplayModeName, display_mode));
-    _settings.emplace_back(build_setting(kPhotoResolution, "1"));  // 1 for 4624x3472
     std::string wb_mode = get_whitebalance_mode();
     _settings.emplace_back(build_setting(kWhitebalanceModeName, wb_mode));
     // 0 for auto exposure mode
