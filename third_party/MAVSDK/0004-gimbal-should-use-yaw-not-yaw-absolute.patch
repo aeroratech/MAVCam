@@ -1,0 +1,25 @@
+From 70c6f71b33f7fa0381e49fd14b4ee18512fab404 Mon Sep 17 00:00:00 2001
+From: "xueshen.an" <xueshen.an@aeroratech.com>
+Date: Wed, 30 Oct 2024 11:06:01 +0800
+Subject: [PATCH 4/4] gimbal should use yaw not yaw absolute
+
+---
+ src/mavsdk/plugins/telemetry/telemetry_impl.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/mavsdk/plugins/telemetry/telemetry_impl.cpp b/src/mavsdk/plugins/telemetry/telemetry_impl.cpp
+index d14519ce..0b551b43 100644
+--- a/src/mavsdk/plugins/telemetry/telemetry_impl.cpp
++++ b/src/mavsdk/plugins/telemetry/telemetry_impl.cpp
+@@ -864,7 +864,7 @@ void TelemetryImpl::process_mount_orientation(const mavlink_message_t& message)
+     Telemetry::EulerAngle euler_angle;
+     euler_angle.roll_deg = mount_orientation.roll;
+     euler_angle.pitch_deg = mount_orientation.pitch;
+-    euler_angle.yaw_deg = mount_orientation.yaw_absolute;
++    euler_angle.yaw_deg = mount_orientation.yaw;
+ 
+     set_camera_attitude_euler_angle(euler_angle);
+ 
+-- 
+2.34.1
+
