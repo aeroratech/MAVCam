@@ -254,7 +254,7 @@ private:
     /**
      * @brief close camera and release resource
      */
-    void close_camera();
+    void deinit();
     /**
      * @brief build setting with name and value
      */
@@ -335,10 +335,10 @@ private:
     mutable std::vector<Camera::Setting> _settings;
     mutable std::mutex _storage_information_mutex;
     mutable mav_camera::StorageInformation _current_storage_information;
+    int32_t _framerate;
 private:
     void *_plugin_handle{NULL};
     mav_camera::MavCamera *_mav_camera{nullptr};
-    int32_t _framerate;
 private:
     void *_ir_camera_handle{NULL};
     struct boson_extension_api *_ir_camera{nullptr};

@@ -12,8 +12,8 @@
 
 namespace mavcam {
 
-const std::string kCameraDisplayModeName = "CAM_DISPLAY_MODE";
 const std::string kCameraModeName = "CAM_MODE";
+const std::string kCameraDisplayModeName = "CAM_DISPLAY_MODE";
 const std::string kPhotoResolution = "CAM_PHOTO_RES";
 const std::string kVideoResolution = "CAM_VIDRES";
 const std::string kVideoFormat = "CAM_VIDFMT";
@@ -44,16 +44,18 @@ static const int32_t kVideoHeight = 2160;
 typedef mav_camera::MavCamera *(*create_qcom_camera_fun)();
 
 CameraImpl::CameraImpl() {
-    _plugin_handle = NULL;
-    _mav_camera = nullptr;
     _current_mode = Camera::Mode::Unknown;
     _framerate = 30;
 }
 
-CameraImpl::~CameraImpl() {}
+CameraImpl::~CameraImpl() {
+    deinit();
+}
 
 Camera::Result CameraImpl::prepare() {
-    close_camera();
+    if (_mav_camera != nullptr) {
+        return Camera::Result::Success;
+    }
     _plugin_handle = dlopen(QCOM_CAMERA_LIBERAY, RTLD_NOW);
     if (_plugin_handle == NULL) {
         char const *err_str = dlerror();
@@ -178,7 +180,7 @@ Camera::Result CameraImpl::prepare() {
             _current_storage_information = storage_information;
         });
 
-    // get all settings
+    // init all settings
     auto display_mode = get_camera_display_mode();
     _settings.emplace_back(build_setting(kCameraDisplayModeName, display_mode));
     std::string wb_mode = get_whitebalance_mode();
@@ -578,7 +580,7 @@ Camera::Result CameraImpl::set_zoom_range(float range) const {
     return Camera::Result::Success;
 }
 
-void CameraImpl::close_camera() {
+void CameraImpl::deinit() {
     if (_mav_camera != nullptr) {
         _mav_camera->close();
         delete _mav_camera;
@@ -588,6 +590,8 @@ void CameraImpl::close_camera() {
         dlclose(_plugin_handle);
         _plugin_handle = NULL;
     }
+
+    free_ir_camera();
 }
 
 Camera::Setting CameraImpl::build_setting(std::string name, std::string value) {
