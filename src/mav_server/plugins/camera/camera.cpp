@@ -95,10 +95,6 @@ void Camera::capture_info_async(const CaptureInfoCallback &callback) {
     _impl->capture_info_async(callback);
 }
 
-Camera::CaptureInfo Camera::capture_info() const {
-    return _impl->capture_info();
-}
-
 void Camera::status_async(const StatusCallback &callback) {
     _impl->status_async(callback);
 }
@@ -109,10 +105,6 @@ Camera::Status Camera::status() const {
 
 void Camera::current_settings_async(const CurrentSettingsCallback &callback) {
     _impl->current_settings_async(callback);
-}
-
-std::vector<Camera::Setting> Camera::current_settings() const {
-    return _impl->current_settings();
 }
 
 void Camera::possible_setting_options_async(const PossibleSettingOptionsCallback &callback) {

@@ -277,7 +277,7 @@ class CameraService final {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetTimestampResponse>>(PrepareAsyncSetTimestampRaw(context, request, cq));
     }
     //
-    // set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
+    // Set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
     virtual ::grpc::Status SetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::mavcam::rpc::camera::SetZoomRangeResponse* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetZoomRangeResponse>> AsyncSetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::mavcam::rpc::camera::SetZoomRangeResponse>>(AsyncSetZoomRangeRaw(context, request, cq));
@@ -384,7 +384,7 @@ class CameraService final {
       virtual void SetTimestamp(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest* request, ::mavcam::rpc::camera::SetTimestampResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void SetTimestamp(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetTimestampRequest* request, ::mavcam::rpc::camera::SetTimestampResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       //
-      // set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
+      // Set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
       virtual void SetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest* request, ::mavcam::rpc::camera::SetZoomRangeResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void SetZoomRange(::grpc::ClientContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest* request, ::mavcam::rpc::camera::SetZoomRangeResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
@@ -854,7 +854,7 @@ class CameraService final {
     // Set camera timestamp.
     virtual ::grpc::Status SetTimestamp(::grpc::ServerContext* context, const ::mavcam::rpc::camera::SetTimestampRequest* request, ::mavcam::rpc::camera::SetTimestampResponse* response);
     //
-    // set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
+    // Set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
     virtual ::grpc::Status SetZoomRange(::grpc::ServerContext* context, const ::mavcam::rpc::camera::SetZoomRangeRequest* request, ::mavcam::rpc::camera::SetZoomRangeResponse* response);
   };
   template <class BaseClass>

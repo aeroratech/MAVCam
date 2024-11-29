@@ -65,7 +65,7 @@ public:
      */
     enum class PhotosRange {
         All,             /**< @brief All the photos present on the camera. */
-        SinceConnection, /**< @brief Photos taken since MAVSDK got connected. */
+        SinceConnection, /**< @brief Photos taken since MAVCam got connected. */
     };
 
     /**
@@ -657,13 +657,6 @@ public:
     void capture_info_async(const CaptureInfoCallback &callback);
 
     /**
-     * @brief Poll for 'CaptureInfo' (blocking).
-     *
-     * @return One CaptureInfo update.
-     */
-    CaptureInfo capture_info() const;
-
-    /**
      * @brief Callback type for status_async.
      */
     using StatusCallback = std::function<void(Status)>;
@@ -689,13 +682,6 @@ public:
      * @brief Get the list of current camera settings.
      */
     void current_settings_async(const CurrentSettingsCallback &callback);
-
-    /**
-     * @brief Poll for 'std::vector<Setting>' (blocking).
-     *
-     * @return One std::vector<Setting> update.
-     */
-    std::vector<Setting> current_settings() const;
 
     /**
      * @brief Callback type for possible_setting_options_async.
@@ -779,7 +765,7 @@ public:
     Result set_timestamp(int64_t timestamp) const;
 
     /**
-     * @brief set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
+     * @brief Set zoom to value as proportion of full camera range (percentage between 0.0 and 100.0).
      *
      * This function is blocking.
      *
