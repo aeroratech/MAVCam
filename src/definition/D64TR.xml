@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="6">
+    <definition version="7">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -31,7 +31,7 @@
                 </option>
             </options>
         </parameter>
-        <parameter name="CAM_DISPLAY_MODE" type="int32" default="0">
+        <parameter name="CAM_DIS_MODE" type="int32" default="0">
             <description>Camera Display mode</description>
             <options>
                 <option name="RGB Only" value="0" />
