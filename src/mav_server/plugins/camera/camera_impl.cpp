@@ -545,20 +545,36 @@ Camera::Result CameraImpl::select_camera(int32_t camera_id) {
 
 Camera::Result CameraImpl::reset_settings() {
     base::LogDebug() << "call reset settings";
-    // reset all value to default value
-    set_mode(Camera::Mode::Photo);
-    set_camera_display_mode("0");
-    set_setting(build_setting(kCameraDisplayModeName, "0"));
+    if (_mav_camera == nullptr) {
+        return Camera::Result::NoSystem;
+    }
 
-    set_whitebalance_mode("0");
-    set_setting(build_setting(kWhitebalanceModeName, "0"));
-
-    set_setting(build_setting("CAM_EXPMODE", "0"));
-    set_setting(build_setting("CAM_EV", "0"));
-    set_setting(build_setting("CAM_ISO", "125"));
-    set_setting(build_setting("CAM_SHUTTERSPD", "1/100"));
-    set_setting(build_setting("CAM_VIDFMT", "1"));
-    set_setting(build_setting("CAM_VIDRES", "0"));
+    auto result = _mav_camera->reset_settings();
+    if (result == mav_camera::Result::Success) {
+        // reset settings value
+        for (auto &it : _settings) {
+            // default camera display mode is PIP
+            if (it.setting_id == kCameraDisplayModeName) {
+                it.option.option_id = "3";
+            } else if (it.setting_id == kWhitebalanceModeName) {
+                it.option.option_id = "0";
+            } else if (it.setting_id == kExposureMode) {
+                it.option.option_id = "0";
+            } else if (it.setting_id == kEVName) {
+                it.option.option_id = "0";
+            } else if (it.setting_id == kISOName) {
+                it.option.option_id = "125";
+            } else if (it.setting_id == kShutterSpeedName) {
+                it.option.option_id = "0.01";
+            } else if (it.setting_id == kVideoFormat) {
+                it.option.option_id = "1";
+            } else if (it.setting_id == kMeteringModeName) {
+                it.option.option_id = "0";
+            } else if (it.setting_id == kCameraModeName) {
+                it.option.option_id = "0";
+            }
+        }
+    }
     return Camera::Result::Success;
 }
 
