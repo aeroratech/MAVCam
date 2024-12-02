@@ -13,7 +13,7 @@
 namespace mavcam {
 
 const std::string kCameraModeName = "CAM_MODE";
-const std::string kCameraDisplayModeName = "CAM_DISPLAY_MODE";
+const std::string kCameraDisplayModeName = "CAM_DIS_MODE";
 const std::string kPhotoResolution = "CAM_PHOTO_RES";
 const std::string kVideoResolution = "CAM_VIDRES";
 const std::string kVideoFormat = "CAM_VIDFMT";
@@ -324,7 +324,7 @@ Camera::Information CameraImpl::information() const {
         out_info.vertical_resolution_px = in_info.vertical_resolution_px;
         out_info.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        out_info.definition_file_version = 6;
+        out_info.definition_file_version = 7;
         out_info.definition_file_uri = "mftp://definition/D64TR.xml";
 
     } else {
