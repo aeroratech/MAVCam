@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="7">
+    <definition version="8">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -201,16 +201,16 @@
         <parameter name="IRCAM_PALETTE" type="int32" default="0">
             <description>Infrared Camera Palette</description>
             <options>
-                <option name="COLOR_WHITEHOT" value="0" />
-                <option name="COLOR_BLACKHOT" value="1" />
-                <option name="COLOR_RAINBOW" value="2" />
-                <option name="COLOR_RAINBOWHC" value="3" />
-                <option name="COLOR_IRONBOW" value="4" />
-                <option name="COLOR_LAVA" value="5" />
-                <option name="COLOR_ARCTIC" value="6" />
-                <option name="COLOR_GLOBOW" value="7" />
-                <option name="COLOR_GRADEDFIRE" value="8" />
-                <option name="COLOR_HOTTEST" value="9" />
+                <option name="WHITEHOT" value="0" />
+                <option name="BLACKHOT" value="1" />
+                <option name="RAINBOW" value="2" />
+                <option name="RAINBOWHC" value="3" />
+                <option name="IRONBOW" value="4" />
+                <option name="LAVA" value="5" />
+                <option name="ARCTIC" value="6" />
+                <option name="GLOBOW" value="7" />
+                <option name="GRADEDFIRE" value="8" />
+                <option name="HOTTEST" value="9" />
             </options>
         </parameter>
         <parameter name="IRCAM_FFC" type="int32" default="0">
