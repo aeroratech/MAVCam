@@ -269,7 +269,6 @@ Camera::Result CameraImpl::set_mode(Camera::Mode mode) {
     }
 
     base::LogDebug() << "call set camera to mode " << mode;
-    _current_mode = mode;
     mav_camera::Result result = mav_camera::Result::Unknown;
     std::string setting_mode = "0";
     if (mode == Camera::Mode::Photo) {
@@ -471,6 +470,13 @@ Camera::Result CameraImpl::set_setting(Camera::Setting setting) {
         }
         auto result = _mav_camera->set_mode(set_mode);
         set_success = result == mav_camera::Result::Success;
+        if (set_success) {
+            if (set_mode == mav_camera::Mode::Photo) {
+                _current_mode = Camera::Mode::Photo;
+            } else {
+                _current_mode = Camera::Mode::Video;
+            }
+        }
     } else if (setting.setting_id == kCameraDisplayModeName) {
         set_success = set_camera_display_mode(setting.option.option_id);
     } else if (setting.setting_id == kPhotoResolution) {
