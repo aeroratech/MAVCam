@@ -10,7 +10,13 @@
 namespace mavcam {
 
 CameraClient *CreateLocalCameraClient() {
-    return new CameraLocalClient();
+    auto local_client = new CameraLocalClient();
+    bool ret = local_client->init();
+    if (!ret) {
+        delete local_client;
+        return nullptr;
+    }
+    return local_client;
 }
 
 CameraClient *CreateRpcCameraClient(int rpc_port) {

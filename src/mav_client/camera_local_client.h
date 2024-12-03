@@ -6,7 +6,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "boson-sdk-interface.h"
 #include "camera_client.h"
+#include "mav_camera.h"
 
 namespace mavcam {
 
@@ -42,18 +44,30 @@ public:  // settings
     mavsdk::CameraServer::Result set_setting(mavsdk::Camera::Setting setting) override;
     std::pair<mavsdk::CameraServer::Result, mavsdk::Camera::Setting> get_setting(
         mavsdk::Camera::Setting setting) const override;
+public:
+    bool init();
 private:
     mavsdk::Camera::Setting build_setting(std::string name, std::string value);
+    mavsdk::CameraServer::Result convert_camera_result_to_mav_server_result(
+        mav_camera::Result input_result);
 private:
     std::atomic<bool> _is_capture_in_progress;
     std::atomic<int> _image_count;
     std::atomic<bool> _is_recording_video;
-    std::atomic<float> _total_storage_mib;
-    std::atomic<float> _available_storage_mib;
     std::chrono::steady_clock::time_point _start_video_time;
+    mutable mavsdk::CameraServer::Mode _current_mode{mavsdk::CameraServer::Mode::Unknown};
     mutable std::unordered_map<std::string, std::string> _settings;
 private:
     std::mutex _mutex{};
+    mutable std::mutex _storage_information_mutex;
+    mutable mav_camera::StorageInformation _current_storage_information;
+    int32_t _framerate;
+private:
+    void *_plugin_handle{NULL};
+    mav_camera::MavCamera *_mav_camera{nullptr};
+private:
+    void *_ir_camera_handle{NULL};
+    struct boson_extension_api *_ir_camera{nullptr};
 };
 
 }  // namespace mavcam
