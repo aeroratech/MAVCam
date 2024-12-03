@@ -47,7 +47,50 @@ public:  // settings
 public:
     bool init();
 private:
+    /**
+     * @brief build setting with name and value
+     */
     mavsdk::Camera::Setting build_setting(std::string name, std::string value);
+    /**
+     * @brief set camera display mode
+     */
+    bool set_camera_display_mode(std::string mode);
+    /**
+     * @brief get current camera display mode
+     */
+    std::string get_camera_display_mode();
+    /**
+     * @brief set whitebalance mode
+    */
+    bool set_whitebalance_mode(std::string mode);
+    /**
+     * @brief get camera whitebalance mode
+    */
+    std::string get_whitebalance_mode();
+    /**
+     * @brief get camera exposure value
+     */
+    std::string get_ev_value();
+    /**
+     * @brief get camera iso value
+     */
+    std::string get_iso_value();
+    /**
+     * @brief get shutter speed value
+     */
+    std::string get_shutter_speed_value();
+    /**
+     * @brief get video resoltuion
+     */
+    std::string get_video_resolution();
+    /**
+     * @brief set video resoltuion
+     */
+    bool set_video_resolution(std::string value);
+    /**
+     * @brief set metering mode
+     */
+    bool set_metering_mode(std::string value);
     mavsdk::CameraServer::Result convert_camera_result_to_mav_server_result(
         mav_camera::Result input_result);
 private:
