@@ -38,6 +38,7 @@ target_link_libraries(${EXECUTE_NAME}
     PRIVATE
     base
     MAVSDK::mavsdk
+    dl
 )
 
 if (BUILD_SERVER)
