@@ -45,28 +45,36 @@ static const int32_t kVideoHeight = 2160;
 typedef mav_camera::MavCamera *(*create_qcom_camera_fun)();
 
 CameraLocalClient::CameraLocalClient() {
+    _current_mode = mavsdk::CameraServer::Mode::Unknown;
     _framerate = 30;
-    _is_capture_in_progress = false;
     _image_count = 0;
     _is_recording_video = false;
 }
 
-CameraLocalClient::~CameraLocalClient() {}
+CameraLocalClient::~CameraLocalClient() {
+    deinit();
+}
 
 mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
-    std::lock_guard<std::mutex> lock(_mutex);
     base::LogDebug() << "locally call take photo " << index;
-    _is_capture_in_progress = true;
-    auto result = mavsdk::CameraServer::Result::Success;
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    _is_capture_in_progress = false;
-    _image_count++;
-    return result;
+    if (_mav_camera == nullptr) {
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto result = _mav_camera->take_photo();
+    auto convert_result = convert_camera_result_to_mav_server_result(result);
+    if (convert_result == mavsdk::CameraServer::Result::Success) {
+        _image_count++;
+    }
+    return convert_result;
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::start_video() {
-    std::lock_guard<std::mutex> lock(_mutex);
     base::LogDebug() << "locally call start video";
+    if (_mav_camera == nullptr) {
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
+    std::lock_guard<std::mutex> lock(_mutex);
     auto result = _mav_camera->start_video();
     auto mav_result = convert_camera_result_to_mav_server_result(result);
     if (mav_result == mavsdk::CameraServer::Result::Success) {
@@ -77,12 +85,15 @@ mavsdk::CameraServer::Result CameraLocalClient::start_video() {
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
+    base::LogDebug() << "locally call stop video";
+    if (_mav_camera == nullptr) {
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
     std::lock_guard<std::mutex> lock(_mutex);
     if (!_is_recording_video) {
         base::LogWarn() << "call stop video without video is recording";
         return mavsdk::CameraServer::Result::Success;
     }
-    base::LogDebug() << "locally call stop video";
     auto result = _mav_camera->stop_video();
     auto mav_result = convert_camera_result_to_mav_server_result(result);
     if (mav_result == mavsdk::CameraServer::Result::Success) {
@@ -104,8 +115,11 @@ mavsdk::CameraServer::Result CameraLocalClient::stop_video_streaming(int stream_
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::set_mode(mavsdk::CameraServer::Mode mode) {
-    std::lock_guard<std::mutex> lock(_mutex);
     base::LogDebug() << "locally call set mode " << mode;
+    if (_mav_camera == nullptr) {
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
+    std::lock_guard<std::mutex> lock(_mutex);
     if (_current_mode == mode) {
         // same mode do not change again
         return mavsdk::CameraServer::Result::Success;
@@ -123,42 +137,92 @@ mavsdk::CameraServer::Result CameraLocalClient::set_mode(mavsdk::CameraServer::M
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::format_storage(int storage_id) {
-    std::lock_guard<std::mutex> lock(_mutex);
     base::LogDebug() << "locally call format storage " << storage_id;
-    return mavsdk::CameraServer::Result::Success;
+    if (_mav_camera == nullptr) {
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto result = _mav_camera->format_storage(storage_id);
+    return convert_camera_result_to_mav_server_result(result);
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
-    std::lock_guard<std::mutex> lock(_mutex);
     base::LogDebug() << "locally call reset settings";
+    if (_mav_camera == nullptr) {
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
+    std::lock_guard<std::mutex> lock(_mutex);
 
+    auto result = _mav_camera->reset_settings();
+    if (result == mav_camera::Result::Success) {
+        // reset settings value
+        _settings[kCameraModeName] = "0";
+        _settings[kCameraDisplayModeName] = "3";
+        _settings[kWhitebalanceModeName] = "0";
+        _settings[kExposureMode] = "0";
+        _settings[kEVName] = "0";
+        _settings[kISOName] = "125";
+        _settings[kShutterSpeedName] = "0.01";
+        _settings[kVideoFormat] = "1";
+        _settings[kMeteringModeName] = "0";
+    }
     return mavsdk::CameraServer::Result::Success;
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::set_timestamp(int64_t time_unix_msec) {
     base::LogDebug() << "local call set timestamp " << time_unix_msec;
-    return mavsdk::CameraServer::Result::Denied;
+    if (_mav_camera == nullptr) {
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
+    auto result = _mav_camera->set_timestamp(time_unix_msec);
+    return convert_camera_result_to_mav_server_result(result);
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
     base::LogDebug() << "local call set zoom range " << range;
-    return mavsdk::CameraServer::Result::Denied;
+    if (_mav_camera == nullptr) {
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto result = _mav_camera->set_zoom(range);
+    return convert_camera_result_to_mav_server_result(result);
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     mavsdk::CameraServer::Information &information) {
-    information.vendor_name = "Aeroratech";
-    information.model_name = "D64TR";
-    information.firmware_version = "0.0.1";
-    information.focal_length_mm = 3.0;
-    information.horizontal_sensor_size_mm = 3.68;
-    information.vertical_sensor_size_mm = 2.76;
-    information.horizontal_resolution_px = 3280;
-    information.vertical_resolution_px = 2464;
-    information.lens_id = 0;
+    mav_camera::Information in_info;
+    mav_camera::Result result = mav_camera::Result::NoSystem;
+    if (_mav_camera != nullptr) {
+        result = _mav_camera->get_information(in_info);
+    }
+    if (result == mav_camera::Result::Success) {
+        information.vendor_name = "Aeroratech";
+        information.model_name = "D64TR";
+        information.firmware_version = "0.6.0";
+        information.focal_length_mm = in_info.focal_length_mm;
+        information.horizontal_sensor_size_mm = in_info.horizontal_sensor_size_mm;
+        information.vertical_sensor_size_mm = in_info.vertical_sensor_size_mm;
+        information.horizontal_resolution_px = in_info.horizontal_resolution_px;
+        information.vertical_resolution_px = in_info.vertical_resolution_px;
+        information.lens_id = in_info.lens_id;
+        //TODO (Thomas) : hard code
+        information.definition_file_version = 8;
+        information.definition_file_uri = "mftp://definition/D64TR.xml";
 
-    information.definition_file_version = 6;
-    information.definition_file_uri = "mftp://definition/D64TR.xml";
+    } else {
+        information.vendor_name = "Unknown";
+        information.model_name = "Unknown";
+        information.firmware_version = "0.0.0";
+        information.focal_length_mm = 0;
+        information.horizontal_sensor_size_mm = 0;
+        information.vertical_sensor_size_mm = 0;
+        information.horizontal_resolution_px = 0;
+        information.vertical_resolution_px = 0;
+        information.lens_id = 0;
+        information.definition_file_version = 0;
+        information.definition_file_uri = "";
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
 
     information.camera_cap_flags.emplace_back(
         mavsdk::CameraServer::Information::CameraCapFlags::CaptureImage);
@@ -257,10 +321,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_capture_status(
     // not need lock guard
     capture_status.available_capacity_mib = _current_storage_information.available_storage_mib;
     capture_status.image_count = _image_count;
-    capture_status.image_status =
-        _is_capture_in_progress
-            ? mavsdk::CameraServer::CaptureStatus::ImageStatus::CaptureInProgress
-            : mavsdk::CameraServer::CaptureStatus::ImageStatus::Idle;
+    capture_status.image_status = mavsdk::CameraServer::CaptureStatus::ImageStatus::Idle;
     capture_status.video_status =
         _is_recording_video ? mavsdk::CameraServer::CaptureStatus::VideoStatus::CaptureInProgress
                             : mavsdk::CameraServer::CaptureStatus::VideoStatus::Idle;
@@ -299,6 +360,9 @@ mavsdk::CameraServer::Result CameraLocalClient::retrieve_current_settings(
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Setting setting) {
+    if (_mav_camera == nullptr) {
+        return mavsdk::CameraServer::Result::NoSystem;
+    }
     base::LogDebug() << "change " << setting.setting_id << " to " << setting.option.option_id;
     if (_settings.count(setting.setting_id) == 0) {
         base::LogError() << "Unsupport setting " << setting.setting_id;
@@ -524,6 +588,18 @@ bool CameraLocalClient::init() {
         base::LogDebug() << "  - " << setting.first << " : " << setting.second;
     }
     return true;
+}
+
+void CameraLocalClient::deinit() {
+    if (_mav_camera != nullptr) {
+        _mav_camera->close();
+        delete _mav_camera;
+        _mav_camera = nullptr;
+    }
+    if (_plugin_handle != NULL) {
+        dlclose(_plugin_handle);
+        _plugin_handle = NULL;
+    }
 }
 
 mavsdk::Camera::Setting CameraLocalClient::build_setting(std::string name, std::string value) {
