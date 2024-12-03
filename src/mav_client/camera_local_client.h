@@ -48,6 +48,10 @@ public:
     bool init();
 private:
     /**
+     * @brief deinit instance
+     */
+    void deinit();
+    /**
      * @brief build setting with name and value
      */
     mavsdk::Camera::Setting build_setting(std::string name, std::string value);
@@ -94,17 +98,16 @@ private:
     mavsdk::CameraServer::Result convert_camera_result_to_mav_server_result(
         mav_camera::Result input_result);
 private:
-    std::atomic<bool> _is_capture_in_progress;
+    mutable mavsdk::CameraServer::Mode _current_mode{mavsdk::CameraServer::Mode::Unknown};
+    int32_t _framerate;
     std::atomic<int> _image_count;
     std::atomic<bool> _is_recording_video;
     std::chrono::steady_clock::time_point _start_video_time;
-    mutable mavsdk::CameraServer::Mode _current_mode{mavsdk::CameraServer::Mode::Unknown};
     mutable std::unordered_map<std::string, std::string> _settings;
 private:
     std::mutex _mutex{};
     mutable std::mutex _storage_information_mutex;
     mutable mav_camera::StorageInformation _current_storage_information;
-    int32_t _framerate;
 private:
     void *_plugin_handle{NULL};
     mav_camera::MavCamera *_mav_camera{nullptr};
