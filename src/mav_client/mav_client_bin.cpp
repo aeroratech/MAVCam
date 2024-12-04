@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <regex>
 
 #include "base/file_operation.h"
 #include "base/log.h"
@@ -14,6 +15,7 @@ static std::string default_ftp_path = "/usr/share/mav-cam/";
 static std::string default_log_path = "/data/camera/";
 static std::fstream *default_log_stream = nullptr;
 static bool compatible_qgc = false;
+static std::string default_store_prefix = "NDAA";
 
 static void usage(const char *bin_name);
 static void init_log();
@@ -23,12 +25,6 @@ void signal_handler(int signum);
 static mavcam::MavClient client;
 int main(int argc, const char *argv[]) {
     std::ios::sync_with_stdio(true);
-
-    base::create_folder_if_not_exit(default_log_path);
-    init_log();
-    signal(SIGINT, signal_handler);
-
-    base::LogDebug() << "Launch mav client";
 
     std::string connection_url = default_connection;
     int rpc_port = default_rpc_port;
@@ -79,6 +75,37 @@ int main(int argc, const char *argv[]) {
             }
             default_log_path = std::string(argv[i + 1]);
             i++;
+        } else if (current_arg == "--store_prefix") {
+            if (argc <= i + 1) {
+                usage(argv[0]);
+                return 1;
+            }
+            default_store_prefix = std::string(argv[i + 1]);
+            i++;
+        } else if (current_arg == "--camera_mode") {
+            if (argc <= i + 1) {
+                usage(argv[0]);
+                return 1;
+            }
+            auto camera_mode = std::string(argv[i + 1]);
+            i++;
+            if (camera_mode != "0" && camera_mode != "1") {
+                usage(argv[0]);
+                return 1;
+            }
+            setenv("MAVCAM_INIT_CAMERA_MODE", camera_mode.c_str(), 1);
+        } else if (current_arg == "--snapshot_resolution") {
+            if (argc <= i + 1) {
+                usage(argv[0]);
+                return 1;
+            }
+            auto snapshot_resolution = std::string(argv[i + 1]);
+            std::regex resolutionRegex(R"(^\d+x\d+$)");
+            if (!std::regex_match(snapshot_resolution, resolutionRegex)) {
+                std::cout << "Invalid snapshot resolution " << snapshot_resolution;
+            }
+            i++;
+            setenv("MAVCAM_INIT_SNAPSHOT_RES", snapshot_resolution.c_str(), 1);
         } else if (current_arg == "--qgc") {
             compatible_qgc = true;
         } else {
@@ -86,6 +113,23 @@ int main(int argc, const char *argv[]) {
             usage(argv[0]);
             return 1;
         }
+    }
+
+    base::create_folder_if_not_exit(default_log_path);
+    init_log();
+    signal(SIGINT, signal_handler);
+
+    base::LogDebug() << "Launch mav client";
+
+    setenv("MAVCAM_DEFAULT_STORE_PREFIX", default_store_prefix.c_str(), 1);
+    base::LogInfo() << "Store prefix is " << default_store_prefix;
+    const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
+    if (init_camera_mode != NULL) {
+        base::LogInfo() << "Init camera mode is " << init_camera_mode;
+    }
+    const char *init_snapshot_resolution = getenv("MAVCAM_INIT_SNAPSHOT_RES");
+    if (init_snapshot_resolution != NULL) {
+        base::LogInfo() << "Init camera snapshot resolution is " << init_snapshot_resolution;
     }
 
     if (!client.init(connection_url, use_local, rpc_port, default_ftp_path, compatible_qgc)) {
@@ -124,6 +168,10 @@ void usage(const char *bin_name) {
               << " (default is " << default_ftp_path << ")" << '\n'
               << "\t--log_path     : store output log to file path, default is " << default_log_path
               << '\n'
+              << "\t--store_prefix : store folder and file prefix, default is "
+              << default_store_prefix << '\n'
+              << "\t--camera_mode  : init camera mode, 0 for photo mode 1 for video mode" << '\n'
+              << "\t--snapshot_resolution : init snapshot resoltuion" << '\n'
               << "\t--qgc          : work compatible with QGC(make mav_client work as Autopilot)"
               << '\n';
 }
