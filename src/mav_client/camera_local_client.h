@@ -95,6 +95,25 @@ private:
      * @brief set metering mode
      */
     bool set_metering_mode(std::string value);
+    /**
+     * @brief init ir camera
+     */
+    bool init_ir_camera();
+    /**
+     * @breif free ir camera
+     */
+    void free_ir_camera();
+    /**
+     * @brief set ir camera palette
+     */
+    bool set_ir_palette(std::string color_mode);
+    /**
+     * @brief execute ir camera FFC
+     */
+    bool set_ir_FFC(std::string ignore);
+    /**
+     * @brief convert mav_camera::Result to mavsdk::CameraServer::Result
+     */
     mavsdk::CameraServer::Result convert_camera_result_to_mav_server_result(
         mav_camera::Result input_result);
 private:

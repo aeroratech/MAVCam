@@ -414,6 +414,10 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_video_resolution(setting.option.option_id);
     } else if (setting.setting_id == kMeteringModeName) {
         set_success = set_metering_mode(setting.option.option_id);
+    } else if (setting.setting_id == kIrCamPalette) {
+        set_success = set_ir_palette(setting.option.option_id);
+    } else if (setting.setting_id == kIrCamFFC) {
+        set_success = set_ir_FFC(setting.option.option_id);
     } else {
         base::LogError() << "Not implement setting" << setting.setting_id;
         set_success = false;
@@ -582,6 +586,15 @@ bool CameraLocalClient::init() {
     std::string video_resolution = get_video_resolution();
     _settings[kVideoResolution] = video_resolution;
     _settings[kMeteringModeName] = "0";
+
+    auto ir_result = init_ir_camera();
+    if (ir_result) {
+        ColorMode color_mode;
+        _ir_camera->get_boson_color_mode(&color_mode);
+        base::LogDebug() << "Current ir palette is " << int(color_mode);
+        _settings[kIrCamPalette] = std::to_string(color_mode);
+        _settings[kIrCamFFC] = "0";
+    }
 
     base::LogDebug() << "Init settings :";
     for (const auto &setting : _settings) {
@@ -829,6 +842,94 @@ bool CameraLocalClient::set_metering_mode(std::string value) {
         base::LogError() << "Failed to set metering mode : " << metering_mode;
     }
     return result == mav_camera::Result::Success;
+}
+
+bool CameraLocalClient::init_ir_camera() {
+    if (_ir_camera != nullptr) {
+        return true;
+    }
+    typedef struct boson_extension_api *(*create_boson_extension_api_fun)();
+    _ir_camera_handle = dlopen(BOSON_CAMERA_LIBRARY, RTLD_NOW);
+    if (_ir_camera_handle == NULL) {
+        char const *err_str = dlerror();
+        base::LogError() << "Load module " << BOSON_CAMERA_LIBRARY << " failed "
+                         << (err_str != NULL ? err_str : "unknown");
+        return false;
+    }
+
+    create_boson_extension_api_fun create_boson_extension_api =
+        (create_boson_extension_api_fun)dlsym(_ir_camera_handle, "create_boson_extension_api");
+    if (create_boson_extension_api == NULL) {
+        base::LogError() << "Cannot find symbol create_boson_extension_api";
+        dlclose(_ir_camera_handle);
+        _ir_camera_handle = NULL;
+        return false;
+    }
+
+    _ir_camera = create_boson_extension_api();
+    if (_ir_camera == nullptr) {
+        base::LogError() << "Cannot create ir camera instance";
+    }
+
+    if (_ir_camera->uart_boson_initialize(16, 921600) == 0) {
+        base::LogInfo() << "API uart_boson_initialize success.";
+    } else {
+        base::LogError() << "Failed to initialize ir camera";
+        free(_ir_camera);
+        _ir_camera = nullptr;
+        return false;
+    }
+
+    uint32_t camera_sn;
+    if (_ir_camera->get_boson_camera_sn(&camera_sn) == 0) {
+        base::LogInfo() << "API get_boson_camera_sn camera_sn: " << camera_sn;
+    } else {
+        base::LogError() << "Failed to get_boson_camera_sn";
+        free(_ir_camera);
+        _ir_camera = nullptr;
+        return false;
+    }
+
+    BOSON_SENSOR_PARTNUMBER part_num;
+    if (_ir_camera->get_boson_camera_pn(&part_num) == 0) {
+        base::LogInfo() << "API get_boson_camera_pn \"" << part_num.value << "\"";
+    } else {
+        base::LogError() << "Failed to get_boson_camera_pn";
+        free(_ir_camera);
+        _ir_camera = nullptr;
+        return false;
+    }
+    base::LogDebug() << "Load ir camera success";
+    return true;
+}
+
+void CameraLocalClient::free_ir_camera() {
+    _ir_camera->uart_boson_close();
+    if (_ir_camera != nullptr) {
+        free(_ir_camera);
+        _ir_camera = nullptr;
+    }
+    if (_ir_camera_handle != NULL) {
+        dlclose(_ir_camera_handle);
+        _ir_camera_handle = NULL;
+    }
+}
+
+bool CameraLocalClient::set_ir_palette(std::string color_mode) {
+    ColorMode convert_mode = (ColorMode)std::stoi(color_mode);
+    if (_ir_camera != nullptr) {
+        auto result = _ir_camera->set_boson_color_mode(convert_mode);
+        return result == 0;
+    }
+    return false;
+}
+
+bool CameraLocalClient::set_ir_FFC(std::string /*ignore*/) {
+    if (_ir_camera != nullptr) {
+        auto result = _ir_camera->process_boson_run_ffc();
+        return result == 0;
+    }
+    return false;
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::convert_camera_result_to_mav_server_result(
