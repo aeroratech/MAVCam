@@ -215,6 +215,7 @@ Camera::Result CameraImpl::prepare() {
 }
 
 Camera::Result CameraImpl::take_photo() {
+    base::LogDebug() << "call take photo";
     auto result = _mav_camera->take_photo();
     return convert_camera_result_to_mav_result(result);
 }
@@ -254,12 +255,12 @@ Camera::Result CameraImpl::stop_video() {
 
 Camera::Result CameraImpl::start_video_streaming(int32_t stream_id) {
     base::LogDebug() << "call start video streaming " << stream_id;
-    return Camera::Result::ProtocolUnsupported;
+    return Camera::Result::Success;
 }
 
 Camera::Result CameraImpl::stop_video_streaming(int32_t stream_id) {
     base::LogDebug() << "call stop video streaming " << stream_id;
-    return Camera::Result::ProtocolUnsupported;
+    return Camera::Result::Success;
 }
 
 Camera::Result CameraImpl::set_mode(Camera::Mode mode) {
