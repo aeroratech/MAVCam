@@ -77,8 +77,14 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
     camera_server.subscribe_system_time(
         [this](int64_t time_unix_msec) { _camera_client->set_timestamp(time_unix_msec); });
 
-    camera_server.subscribe_zoom_range(
-        [this](float range) { _camera_client->set_zoom_range(range); });
+    camera_server.subscribe_zoom_range([this, &camera_server](float range) {
+        auto result = _camera_client->set_zoom_range(range);
+        if (result != mavsdk::CameraServer::Result::Success) {
+            camera_server.respond_zoom_range(mavsdk::CameraServer::CameraFeedback::Failed);
+        } else {
+            camera_server.respond_zoom_range(mavsdk::CameraServer::CameraFeedback::Ok);
+        }
+    });
 
     camera_server.subscribe_take_photo([this, &camera_server](int32_t index) {
         _camera_client->take_photo(index);
@@ -163,7 +169,6 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
     });
 
     camera_server.subscribe_capture_status([this, &camera_server](int32_t reserved) {
-        base::LogDebug() << "respond capture status";
         mavsdk::CameraServer::CaptureStatus capture_status;
         _camera_client->fill_capture_status(capture_status);
         camera_server.respond_capture_status(mavsdk::CameraServer::CameraFeedback::Ok,
