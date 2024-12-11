@@ -137,7 +137,7 @@ Camera::Result CameraImpl::prepare() {
         } else {
             options.snapshot_width = kSnapshotWidth;
             options.snapshot_height = kSnapshotHeight;
-            _settings.emplace_back(build_setting(kPhotoResolution, "0"));
+            _settings.emplace_back(build_setting(kPhotoResolution, "0"));  // 0 for full resolution
         }
     }
 
