@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="8">
+    <definition version="9">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -11,6 +11,7 @@
             <!-- This tells us when this parameter changes, these parameters must be updated (requested)-->
             <updates>
                 <update>CAM_PHOTO_RES</update>
+                <update>CAM_PHOTO_QC</update>
                 <update>CAM_SHUTTERSPD</update>
                 <update>CAM_ISO</update>
                 <update>CAM_VIDRES</update>
@@ -27,6 +28,7 @@
                     <!-- Converselly, when Camera Mode is set to Video mode, the following parameters should be ignored (hidden from UI or disabled)-->
                     <exclusions>
                         <exclude>CAM_PHOTO_RES</exclude>
+                        <update>CAM_PHOTO_QC</update>
                     </exclusions>
                 </option>
             </options>
@@ -45,6 +47,14 @@
             <options>
                 <option name="Full" value="0" />
                 <option name="1/4" value="1" />
+            </options>
+        </parameter>
+        <parameter name="CAM_PHOTO_QC" type="int32" default="0">
+            <description>Photo Quality</description>
+            <options>
+                <option name="Super Fine" value="0" />
+                <option name="Fine" value="1" />
+                <option name="Normal" value="2" />
             </options>
         </parameter>
         <parameter name="CAM_WBMODE" type="int32" default="0">
