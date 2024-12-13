@@ -533,15 +533,10 @@ bool CameraLocalClient::init() {
         std::tie(result, kSnapshotWidth, kSnapshotHeight) = _mav_camera->get_snapshot_resolution();
         kSnapshotHalfWidth = kSnapshotWidth / 2;
         kSnapshotHalfHeight = kSnapshotHeight / 2;
-        if (kSnapshotWidth > 8000) {  // for 64M mode, use half width and height
-            options.snapshot_width = kSnapshotHalfWidth;
-            options.snapshot_height = kSnapshotHalfHeight;
-            _settings[kPhotoResolution] = "1";  // 1 for 1/4 resolution
-        } else {
-            options.snapshot_width = kSnapshotWidth;
-            options.snapshot_height = kSnapshotHeight;
-            _settings[kPhotoResolution] = "0";  // 0 for full resolution
-        }
+
+        options.snapshot_width = kSnapshotWidth;
+        options.snapshot_height = kSnapshotHeight;
+        _settings[kPhotoResolution] = "0";  // 0 for full resolution
     }
     options.jpeg_quality = mav_camera::JpegQuality::SuperFine;
     _settings[kPhotoQuality] = "0";  // 0 for jpeg super fine
@@ -609,6 +604,9 @@ bool CameraLocalClient::init() {
         _ir_camera->get_boson_color_mode(&color_mode);
         base::LogDebug() << "Current ir palette is " << int(color_mode);
         _settings[kIrCamPalette] = std::to_string(color_mode);
+        _settings[kIrCamFFC] = "0";
+    } else {  // When ir camera init failed, just add empty value for settings
+        _settings[kIrCamPalette] = "0";
         _settings[kIrCamFFC] = "0";
     }
 
