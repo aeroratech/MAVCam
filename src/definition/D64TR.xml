@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="9">
+    <definition version="10">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -28,7 +28,7 @@
                     <!-- Converselly, when Camera Mode is set to Video mode, the following parameters should be ignored (hidden from UI or disabled)-->
                     <exclusions>
                         <exclude>CAM_PHOTO_RES</exclude>
-                        <update>CAM_PHOTO_QC</update>
+                        <exclude>CAM_PHOTO_QC</exclude>
                     </exclusions>
                 </option>
             </options>
