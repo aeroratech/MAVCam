@@ -648,17 +648,10 @@ bool CameraLocalClient::init() {
     _settings[kVideoResolution] = init_video_resolution();
     _settings[kMeteringModeName] = init_metering_mode();
 
-    auto ir_result = init_ir_camera();
-    if (ir_result) {
-        ColorMode color_mode;
-        _ir_camera->get_boson_color_mode(&color_mode);
-        base::LogDebug() << "Current ir palette is " << int(color_mode);
-        _settings[kIrCamPalette] = std::to_string(color_mode);
-        _settings[kIrCamFFC] = "0";
-    } else {  // When ir camera init failed, just add empty value for settings
-        _settings[kIrCamPalette] = "0";
-        _settings[kIrCamFFC] = "0";
-    }
+    // init ir camera
+    init_ir_camera();
+    _settings[kIrCamPalette] = init_ir_palette();
+    _settings[kIrCamFFC] = "0";
 
     base::LogDebug() << "Init settings :";
     for (const auto &setting : _settings) {
@@ -1082,6 +1075,26 @@ void CameraLocalClient::free_ir_camera() {
     if (_ir_camera_handle != NULL) {
         dlclose(_ir_camera_handle);
         _ir_camera_handle = NULL;
+    }
+}
+
+std::string CameraLocalClient::init_ir_palette() {
+    auto store_ir_palette = _camera_param.get_value(kIrCamPalette);
+    if (store_ir_palette.empty()) {
+        std::string palette;
+        if (_ir_camera != nullptr) {
+            ColorMode color_mode;
+            _ir_camera->get_boson_color_mode(&color_mode);
+            base::LogDebug() << "Current ir palette is " << int(color_mode);
+            palette = std::to_string(color_mode);
+        } else {  // When ir camera init failed, just add empty value for settings
+            palette = "0";
+        }
+        _camera_param.set_value(kIrCamPalette, palette);
+        return palette;
+    } else {
+        set_ir_palette(store_ir_palette);
+        return store_ir_palette;
     }
 }
 
