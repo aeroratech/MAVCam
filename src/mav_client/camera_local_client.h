@@ -77,6 +77,12 @@ private:
     */
     bool set_whitebalance_mode(std::string mode);
     /**
+     * @brief init exposure mode
+     * @details prefer to use store exposure mode
+     * @return current exposure mode
+     */
+    std::string init_exposure_mode();
+    /**
      * @brief init camera exposure value
      * @details prefer to use store exposure value
      * @return current exposure value
