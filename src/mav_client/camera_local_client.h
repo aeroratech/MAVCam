@@ -113,9 +113,17 @@ private:
     */
     bool set_shutter_speed(std::string shutter_speed);
     /**
-     * @brief get video resoltuion
+     * @brief init video format
+     * @details prefer to use store video format
+     * @return current video format
      */
-    std::string get_video_resolution();
+    std::string init_video_format();
+    /**
+     * @brief init video resoltuion
+     * @details prefer to use store video resolution
+     * @return current video resolution
+     */
+    std::string init_video_resolution();
     /**
      * @brief set video resoltuion
      */

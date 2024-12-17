@@ -644,8 +644,8 @@ bool CameraLocalClient::init() {
     _settings[kEVName] = init_exposure_value();
     _settings[kISOName] = init_iso();
     _settings[kShutterSpeedName] = init_shutter_speed();
-    _settings[kVideoFormat] = "1";
-    _settings[kVideoResolution] = get_video_resolution();
+    _settings[kVideoFormat] = init_video_format();
+    _settings[kVideoResolution] = init_video_resolution();
     _settings[kMeteringModeName] = init_metering_mode();
 
     auto ir_result = init_ir_camera();
@@ -905,33 +905,53 @@ bool CameraLocalClient::set_shutter_speed(std::string shutter_speed) {
     return result == mav_camera::Result::Success;
 }
 
-std::string CameraLocalClient::get_video_resolution() {
-    auto [result, width, height] = _mav_camera->get_video_resolution();
-    if (result != mav_camera::Result::Success) {
-        base::LogError() << "Cannot get video resolution"
-                         << convert_camera_result_to_mav_server_result(result);
-        return "0";
-    }
-    auto [result2, framerate] = _mav_camera->get_framerate();
-    if (result2 != mav_camera::Result::Success) {
-        base::LogError() << "Cannot get framerate"
-                         << convert_camera_result_to_mav_server_result(result);
-        return "0";
-    }
-    base::LogDebug() << "Current video resolution is " << width << "x" << height << "@"
-                     << framerate;
-    if (width == 3840 && height == 2160 && framerate == 60) {
-        return "0";
-    } else if (width == 3840 && height == 2160 && framerate == 30) {
-        return "1";
-    } else if (width == 1920 && height == 1080 && framerate == 60) {
-        return "2";
-    } else if (width == 1920 && height == 1080 && framerate == 30) {
-        return "3";
+std::string CameraLocalClient::init_video_format() {
+    auto store_video_format = _camera_param.get_value(kVideoFormat);
+    if (store_video_format.empty()) {
+        std::string video_format = "1";
+        _camera_param.set_value(kVideoFormat, video_format);
+        return video_format;
     } else {
-        base::LogError() << "Not found match resolution : " << width << "x" << height << "@"
+        return store_video_format;
+    }
+}
+
+std::string CameraLocalClient::init_video_resolution() {
+    auto store_video_resolution = _camera_param.get_value(kVideoResolution);
+    if (store_video_resolution.empty()) {
+        std::string video_resolution = "";
+        auto [result, width, height] = _mav_camera->get_video_resolution();
+        if (result != mav_camera::Result::Success) {
+            base::LogError() << "Cannot get video resolution"
+                             << convert_camera_result_to_mav_server_result(result);
+            video_resolution = "0";
+        }
+        auto [result2, framerate] = _mav_camera->get_framerate();
+        if (result2 != mav_camera::Result::Success) {
+            base::LogError() << "Cannot get framerate"
+                             << convert_camera_result_to_mav_server_result(result);
+            video_resolution = "0";
+        }
+        base::LogDebug() << "Current video resolution is " << width << "x" << height << "@"
                          << framerate;
-        return "0";
+        if (width == 3840 && height == 2160 && framerate == 60) {
+            video_resolution = "0";
+        } else if (width == 3840 && height == 2160 && framerate == 30) {
+            video_resolution = "1";
+        } else if (width == 1920 && height == 1080 && framerate == 60) {
+            video_resolution = "2";
+        } else if (width == 1920 && height == 1080 && framerate == 30) {
+            video_resolution = "3";
+        } else {
+            base::LogError() << "Not found match resolution : " << width << "x" << height << "@"
+                             << framerate;
+            video_resolution = "0";
+        }
+        _camera_param.set_value(kVideoResolution, video_resolution);
+        return video_resolution;
+    } else {
+        set_video_resolution(store_video_resolution);
+        return store_video_resolution;
     }
 }
 
