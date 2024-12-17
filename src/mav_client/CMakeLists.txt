@@ -8,6 +8,7 @@ set(MAV_CLIENT_SOURCES
     mav_client.cpp
     camera_client.cpp
     camera_local_client.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../camera_param/camera_param.cc
 )
 
 if (BUILD_SERVER)
