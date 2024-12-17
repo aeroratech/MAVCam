@@ -256,10 +256,10 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_video_stream_info(
     mavsdk::CameraServer::VideoStreamInfo normal_video_stream;
     normal_video_stream.stream_id = 1;
 
-    normal_video_stream.settings.frame_rate_hz = 60.0;
-    normal_video_stream.settings.horizontal_resolution_pix = 1920;
-    normal_video_stream.settings.vertical_resolution_pix = 1080;
-    normal_video_stream.settings.bit_rate_b_s = 4 * 1024 * 1024;
+    normal_video_stream.settings.frame_rate_hz = 30.0;
+    normal_video_stream.settings.horizontal_resolution_pix = 1280;
+    normal_video_stream.settings.vertical_resolution_pix = 720;
+    normal_video_stream.settings.bit_rate_b_s = 1 * 1024 * 1024;
     normal_video_stream.settings.rotation_deg = 0;
     normal_video_stream.settings.uri = "rtsp://192.168.251.1/live";
     normal_video_stream.settings.horizontal_fov_deg = 0;
