@@ -40,7 +40,7 @@ CameraParam::CameraParam() {
         _ifstream.close();
         return;
     }
-    base::LogDebug() << _root;
+    base::LogDebug() << "Init camera param " << _root;
     _ifstream.close();
 }
 
