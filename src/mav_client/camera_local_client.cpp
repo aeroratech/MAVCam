@@ -158,15 +158,25 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
     if (result == mav_camera::Result::Success) {
         // reset settings value
         _settings[kCameraModeName] = "0";
+        _camera_param.set_value(kCameraModeName, "0");
         _settings[kCameraDisplayModeName] = "0";
+        _camera_param.set_value(kCameraDisplayModeName, "0");
         _settings[kPhotoQuality] = "0";
+        _camera_param.set_value(kPhotoQuality, "0");
         _settings[kWhitebalanceModeName] = "0";
+        _camera_param.set_value(kWhitebalanceModeName, "0");
         _settings[kExposureMode] = "0";
+        _camera_param.set_value(kExposureMode, "0");
         _settings[kEVName] = "0";
+        _camera_param.set_value(kEVName, "0");
         _settings[kISOName] = "125";
+        _camera_param.set_value(kISOName, "125");
         _settings[kShutterSpeedName] = "0.01";
+        _camera_param.set_value(kShutterSpeedName, "0.01");
         _settings[kVideoFormat] = "1";
+        _camera_param.set_value(kVideoFormat, "1");
         _settings[kMeteringModeName] = "0";
+        _camera_param.set_value(kMeteringModeName, "0");
     }
     return mavsdk::CameraServer::Result::Success;
 }
@@ -208,7 +218,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 9;
+        information.definition_file_version = 10;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
 
     } else {
@@ -497,7 +507,9 @@ bool CameraLocalClient::init() {
     options.preview_v4l2_output = false;
     options.preview_weston_output = true;
 
-    //init priority is env > sotre > default
+    ///< init priority is env > sotre > default
+
+    /************** Camera Mode *************/
     auto camera_mode = mav_camera::Mode::Photo;
 
     const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
@@ -533,6 +545,7 @@ bool CameraLocalClient::init() {
         _settings[kCameraModeName] = "1";
     }
 
+    /************** Photo Resolution *************/
     const char *init_snapshot_resoltuion = getenv("MAVCAM_INIT_SNAPSHOT_RES");
     if (init_snapshot_resoltuion != NULL) {
         std::regex resolutionRegex(R"(^(\d+)x(\d+)$)");
@@ -558,12 +571,42 @@ bool CameraLocalClient::init() {
         kSnapshotHalfWidth = kSnapshotWidth / 2;
         kSnapshotHalfHeight = kSnapshotHeight / 2;
 
-        options.snapshot_width = kSnapshotWidth;
-        options.snapshot_height = kSnapshotHeight;
-        _settings[kPhotoResolution] = "0";  // 0 for full resolution
+        auto store_resolution = _camera_param.get_value(kPhotoResolution);
+        if (store_resolution.empty()) {  // init default param to local storage
+            // default is full resolution
+            options.snapshot_width = kSnapshotWidth;
+            options.snapshot_height = kSnapshotHeight;
+            _settings[kPhotoResolution] = "0";
+            _camera_param.set_value(kPhotoResolution, "0");
+        } else {
+            if (store_resolution == "0") {
+                options.snapshot_width = kSnapshotWidth;
+                options.snapshot_height = kSnapshotHeight;
+                _settings[kPhotoResolution] = "0";  // 0 for full resolution
+            } else {
+                options.snapshot_width = kSnapshotHalfWidth;
+                options.snapshot_height = kSnapshotHeight;
+                _settings[kPhotoResolution] = "1";  // 1 for 1/4 resolution
+            }
+        }
     }
-    options.jpeg_quality = mav_camera::JpegQuality::SuperFine;
-    _settings[kPhotoQuality] = "0";  // 0 for jpeg super fine
+
+    /************** Jpeg Quality *************/
+    auto store_jpeg_quality = _camera_param.get_value(kPhotoQuality);
+    if (store_jpeg_quality.empty()) {
+        options.jpeg_quality = mav_camera::JpegQuality::SuperFine;
+        _settings[kPhotoQuality] = "0";  // 0 for jpeg super fine
+        _camera_param.set_value(kPhotoQuality, "0");
+    } else {
+        _settings[kPhotoQuality] = store_jpeg_quality;
+        if (store_jpeg_quality == "0") {
+            options.jpeg_quality = mav_camera::JpegQuality::SuperFine;
+        } else if (store_jpeg_quality == "1") {
+            options.jpeg_quality = mav_camera::JpegQuality::Fine;
+        } else {
+            options.jpeg_quality = mav_camera::JpegQuality::Normal;
+        }
+    }
 
     if (options.init_mode == mav_camera::Mode::Photo) {
         options.preview_width = kPreviewWidth;
@@ -599,7 +642,7 @@ bool CameraLocalClient::init() {
         });
 
     // init all settings
-    auto display_mode = get_camera_display_mode();
+    auto display_mode = init_camera_display_mode();
     _settings[kCameraDisplayModeName] = display_mode;
     std::string wb_mode = get_whitebalance_mode();
     _settings[kWhitebalanceModeName] = wb_mode;
@@ -673,27 +716,50 @@ bool CameraLocalClient::set_camera_display_mode(std::string mode) {
     return result == mav_camera::Result::Success;
 }
 
-std::string CameraLocalClient::get_camera_display_mode() {
-    mav_camera::Result result;
-    mav_camera::PreivewStreamOutputType preview_type;
-    std::tie(result, preview_type) = _mav_camera->get_preview_stream_output_type();
-    if (result == mav_camera::Result::Success) {
-        switch (preview_type) {
-            case mav_camera::PreivewStreamOutputType::RGBStreamOnly:
-                return "0";
-                break;
-            case mav_camera::PreivewStreamOutputType::InfraredStreamOnly:
-                return "1";
-                break;
-            case mav_camera::PreivewStreamOutputType::MixSideBySide:
-                return "2";
-                break;
-            case mav_camera::PreivewStreamOutputType::MixPIP:
-                return "3";
-                break;
+std::string CameraLocalClient::init_camera_display_mode() {
+    auto store_display_mode = _camera_param.get_value(kCameraDisplayModeName);
+    if (store_display_mode.empty()) {
+        //init default display mode
+        mav_camera::Result result;
+        mav_camera::PreivewStreamOutputType preview_type;
+        std::tie(result, preview_type) = _mav_camera->get_preview_stream_output_type();
+        std::string default_mode = "0";
+        if (result == mav_camera::Result::Success) {
+            switch (preview_type) {
+                case mav_camera::PreivewStreamOutputType::RGBStreamOnly:
+                    default_mode = "0";
+                    break;
+                case mav_camera::PreivewStreamOutputType::InfraredStreamOnly:
+                    default_mode = "1";
+                    break;
+                case mav_camera::PreivewStreamOutputType::MixSideBySide:
+                    default_mode = "2";
+                    break;
+                case mav_camera::PreivewStreamOutputType::MixPIP:
+                    default_mode = "3";
+                    break;
+            }
         }
+        _camera_param.set_value(kCameraDisplayModeName, default_mode);
+        return default_mode;
+    } else {
+        if (store_display_mode == "0") {
+            _mav_camera->set_preview_stream_output_type(
+                mav_camera::PreivewStreamOutputType::RGBStreamOnly);
+        } else if (store_display_mode == "1") {
+            _mav_camera->set_preview_stream_output_type(
+                mav_camera::PreivewStreamOutputType::InfraredStreamOnly);
+        } else if (store_display_mode == "2") {
+            _mav_camera->set_preview_stream_output_type(
+                mav_camera::PreivewStreamOutputType::MixSideBySide);
+        } else if (store_display_mode == "3") {
+            _mav_camera->set_preview_stream_output_type(
+                mav_camera::PreivewStreamOutputType::MixPIP);
+        }
+        return store_display_mode;
     }
-    return 0;
+
+    return "0";
 }
 
 /**

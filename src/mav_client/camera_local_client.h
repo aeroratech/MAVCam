@@ -61,9 +61,11 @@ private:
      */
     bool set_camera_display_mode(std::string mode);
     /**
-     * @brief get current camera display mode
+     * @brief init current camera display mode
+     * @details prefer use store display mode
+     * @return current camera display mode string value
      */
-    std::string get_camera_display_mode();
+    std::string init_camera_display_mode();
     /**
      * @brief set whitebalance mode
     */
