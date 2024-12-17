@@ -324,7 +324,7 @@ Camera::Information CameraImpl::information() const {
         out_info.vertical_resolution_px = in_info.vertical_resolution_px;
         out_info.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        out_info.definition_file_version = 8;
+        out_info.definition_file_version = 10;
         out_info.definition_file_uri = "mftp://definition/D64TR.xml";
 
     } else {
