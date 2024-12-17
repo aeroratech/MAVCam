@@ -640,22 +640,16 @@ bool CameraLocalClient::init() {
         });
 
     // init all settings
-    auto display_mode = init_camera_display_mode();
-    _settings[kCameraDisplayModeName] = display_mode;
-    std::string wb_mode = init_whitebalance_mode();
-    _settings[kWhitebalanceModeName] = wb_mode;
+    _settings[kCameraDisplayModeName] = init_camera_display_mode();
+    _settings[kWhitebalanceModeName] = init_whitebalance_mode();
     // 0 for auto exposure mode
     _settings[kExposureMode] = "0";
-    std::string ev_value = init_exposure_value();
-    _settings[kEVName] = ev_value;
-    std::string iso_value = get_iso_value();
-    _settings[kISOName] = iso_value;
-    std::string shutter_speed_value = get_shutter_speed_value();
-    _settings[kShutterSpeedName] = shutter_speed_value;
+    _settings[kEVName] = init_exposure_value();
+    _settings[kISOName] = get_iso_value();
+    _settings[kShutterSpeedName] = get_shutter_speed_value();
     _settings[kVideoFormat] = "1";
-    std::string video_resolution = get_video_resolution();
-    _settings[kVideoResolution] = video_resolution;
-    _settings[kMeteringModeName] = "0";
+    _settings[kVideoResolution] = get_video_resolution();
+    _settings[kMeteringModeName] = init_metering_mode();
 
     auto ir_result = init_ir_camera();
     if (ir_result) {
@@ -936,6 +930,18 @@ bool CameraLocalClient::set_video_resolution(std::string value) {
         base::LogError() << "Failed to set video framerate : " << set_framerate;
     }
     return result == mav_camera::Result::Success;
+}
+
+std::string CameraLocalClient::init_metering_mode() {
+    auto store_metering = _camera_param.get_value(kMeteringModeName);
+    if (store_metering.empty()) {
+        std::string metering = "0";
+        _camera_param.set_value(kMeteringModeName, metering);
+        return metering;
+    } else {
+        set_metering_mode(store_metering);
+        return store_metering;
+    }
 }
 
 bool CameraLocalClient::set_metering_mode(std::string value) {

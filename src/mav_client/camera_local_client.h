@@ -103,6 +103,12 @@ private:
      */
     bool set_video_resolution(std::string value);
     /**
+     * @brief init camera metering mode
+     * @details prefer to use store metering mode
+     * @return current metering mode
+     */
+    std::string init_metering_mode();
+    /**
      * @brief set metering mode
      */
     bool set_metering_mode(std::string value);
