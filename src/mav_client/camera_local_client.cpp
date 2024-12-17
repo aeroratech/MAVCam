@@ -425,8 +425,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         // exposure mode not set to camera implement
         set_success = true;
     } else if (setting.setting_id == kEVName) {  // exposure value
-        auto result = _mav_camera->set_exposure_value(std::stof(setting.option.option_id));
-        set_success = result == mav_camera::Result::Success;
+        set_success = set_exposure_value(setting.option.option_id);
     } else if (setting.setting_id == kISOName) {
         auto result = _mav_camera->set_iso(std::stoi(setting.option.option_id));
         set_success = result == mav_camera::Result::Success;
@@ -647,7 +646,7 @@ bool CameraLocalClient::init() {
     _settings[kWhitebalanceModeName] = wb_mode;
     // 0 for auto exposure mode
     _settings[kExposureMode] = "0";
-    std::string ev_value = get_ev_value();
+    std::string ev_value = init_exposure_value();
     _settings[kEVName] = ev_value;
     std::string iso_value = get_iso_value();
     _settings[kISOName] = iso_value;
@@ -811,17 +810,31 @@ bool CameraLocalClient::set_whitebalance_mode(std::string mode) {
     return result == mav_camera::Result::Success;
 }
 
-std::string CameraLocalClient::get_ev_value() {
-    auto [result, value] = _mav_camera->get_exposure_value();
-    if (result != mav_camera::Result::Success) {
-        base::LogError() << "Cannot get exposure value"
-                         << convert_camera_result_to_mav_server_result(result);
-        return "0.0";
+std::string CameraLocalClient::init_exposure_value() {
+    auto store_ev = _camera_param.get_value(kEVName);
+    if (store_ev.empty()) {
+        std::string ev = "0.0";
+        auto [result, value] = _mav_camera->get_exposure_value();
+        if (result != mav_camera::Result::Success) {
+            base::LogError() << "Cannot get exposure value"
+                             << convert_camera_result_to_mav_server_result(result);
+            ev = "0.0";
+        } else {
+            std::ostringstream oss;
+            oss << std::fixed << std::setprecision(1) << value;
+            ev = oss.str();
+        }
+        _camera_param.set_value(kEVName, ev);
+        return ev;
+    } else {
+        set_exposure_value(store_ev);
+        return store_ev;
     }
-    std::ostringstream oss;
-    oss << std::fixed << std::setprecision(1) << value;
-    std::string ev_value = oss.str();
-    return ev_value;
+}
+
+bool CameraLocalClient::set_exposure_value(std::string exposure_value) {
+    auto result = _mav_camera->set_exposure_value(std::stof(exposure_value));
+    return result == mav_camera::Result::Success;
 }
 
 std::string CameraLocalClient::get_iso_value() {

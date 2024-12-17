@@ -57,7 +57,7 @@ private:
      */
     mavsdk::Camera::Setting build_setting(std::string name, std::string value);
     /**
-     * @brief init current camera display mode
+     * @brief init camera display mode
      * @details prefer to use store display mode
      * @return current camera display mode string value
      */
@@ -67,7 +67,7 @@ private:
      */
     bool set_camera_display_mode(std::string mode);
     /**
-     * @brief init current camera whitebalance mode
+     * @brief init camera whitebalance mode
      * @details prefer to use store whitebalance mode
      * @return current white balance string value
     */
@@ -77,9 +77,15 @@ private:
     */
     bool set_whitebalance_mode(std::string mode);
     /**
-     * @brief get camera exposure value
+     * @brief init camera exposure value
+     * @details prefer to use store exposure value
+     * @return current exposure value
      */
-    std::string get_ev_value();
+    std::string init_exposure_value();
+    /**
+     * @brief set exposure value
+     */
+    bool set_exposure_value(std::string exposure_value);
     /**
      * @brief get camera iso value
      */
