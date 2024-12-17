@@ -158,7 +158,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
     if (result == mav_camera::Result::Success) {
         // reset settings value
         _settings[kCameraModeName] = "0";
-        _settings[kCameraDisplayModeName] = "3";
+        _settings[kCameraDisplayModeName] = "0";
         _settings[kPhotoQuality] = "0";
         _settings[kWhitebalanceModeName] = "0";
         _settings[kExposureMode] = "0";
@@ -439,6 +439,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     // when set success update the settings value
     if (set_success) {
         _settings[setting.setting_id] = setting.option.option_id;
+        _camera_param.set_value(setting.setting_id, setting.option.option_id);
     }
     return mavsdk::CameraServer::Result::Success;
 }
@@ -496,7 +497,9 @@ bool CameraLocalClient::init() {
     options.preview_v4l2_output = false;
     options.preview_weston_output = true;
 
+    //init priority is env > sotre > default
     auto camera_mode = mav_camera::Mode::Photo;
+
     const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
     if (init_camera_mode != NULL) {
         if (strncmp(init_camera_mode, "0", 1) == 0) {
@@ -507,7 +510,28 @@ bool CameraLocalClient::init() {
             base::LogInfo() << "Manually init camera to video mode";
         }
     }
+
+    auto store_mode = _camera_param.get_value(kCameraModeName);
+    if (store_mode.empty()) {  // init default param to local storage
+        if (camera_mode == mav_camera::Mode::Photo) {
+            _camera_param.set_value(kCameraModeName, "0");
+        } else {
+            _camera_param.set_value(kCameraModeName, "1");
+        }
+    } else {
+        if (store_mode == "0") {
+            camera_mode = mav_camera::Mode::Photo;
+        } else {
+            camera_mode = mav_camera::Mode::Video;
+        }
+    }
+
     options.init_mode = camera_mode;
+    if (options.init_mode == mav_camera::Mode::Photo) {
+        _settings[kCameraModeName] = "0";
+    } else {
+        _settings[kCameraModeName] = "1";
+    }
 
     const char *init_snapshot_resoltuion = getenv("MAVCAM_INIT_SNAPSHOT_RES");
     if (init_snapshot_resoltuion != NULL) {
@@ -566,12 +590,6 @@ bool CameraLocalClient::init() {
     result = _mav_camera->open(options);
     if (result == mav_camera::Result::Success) {
         base::LogDebug() << "open qcom camera success";
-    }
-
-    if (options.init_mode == mav_camera::Mode::Photo) {
-        _settings[kCameraModeName] = "0";
-    } else {
-        _settings[kCameraModeName] = "1";
     }
 
     _mav_camera->subscribe_storage_information(
