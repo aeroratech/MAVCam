@@ -93,9 +93,15 @@ private:
      */
     bool set_exposure_value(std::string exposure_value);
     /**
-     * @brief get camera iso value
+     * @brief init camera iso value
+     * @details prefer to use store iso value
+     * @return current iso value
      */
-    std::string get_iso_value();
+    std::string init_iso();
+    /**
+     * @brief set iso value
+    */
+    bool set_iso(std::string iso);
     /**
      * @brief get shutter speed value
      */

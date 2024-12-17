@@ -427,8 +427,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     } else if (setting.setting_id == kEVName) {  // exposure value
         set_success = set_exposure_value(setting.option.option_id);
     } else if (setting.setting_id == kISOName) {
-        auto result = _mav_camera->set_iso(std::stoi(setting.option.option_id));
-        set_success = result == mav_camera::Result::Success;
+        set_success = set_iso(setting.option.option_id);
     } else if (setting.setting_id == kShutterSpeedName) {
         auto result = _mav_camera->set_shutter_speed(setting.option.option_id);
         set_success = result == mav_camera::Result::Success;
@@ -644,7 +643,7 @@ bool CameraLocalClient::init() {
     _settings[kWhitebalanceModeName] = init_whitebalance_mode();
     _settings[kExposureMode] = init_exposure_mode();
     _settings[kEVName] = init_exposure_value();
-    _settings[kISOName] = get_iso_value();
+    _settings[kISOName] = init_iso();
     _settings[kShutterSpeedName] = get_shutter_speed_value();
     _settings[kVideoFormat] = "1";
     _settings[kVideoResolution] = get_video_resolution();
@@ -842,14 +841,28 @@ bool CameraLocalClient::set_exposure_value(std::string exposure_value) {
     return result == mav_camera::Result::Success;
 }
 
-std::string CameraLocalClient::get_iso_value() {
-    auto [result, value] = _mav_camera->get_iso();
-    if (result != mav_camera::Result::Success) {
-        base::LogError() << "Cannot get iso value"
-                         << convert_camera_result_to_mav_server_result(result);
-        return "100";
+std::string CameraLocalClient::init_iso() {
+    auto store_iso = _camera_param.get_value(kISOName);
+    if (store_iso.empty()) {
+        auto [result, value] = _mav_camera->get_iso();
+        std::string iso;
+        if (result != mav_camera::Result::Success) {
+            base::LogError() << "Cannot get iso value"
+                             << convert_camera_result_to_mav_server_result(result);
+            iso = "100";
+        }
+        iso = std::to_string(value);
+        _camera_param.set_value(kISOName, iso);
+        return iso;
+    } else {
+        set_iso(store_iso);
+        return store_iso;
     }
-    return std::to_string(value);
+}
+
+bool CameraLocalClient::set_iso(std::string iso) {
+    auto result = _mav_camera->set_iso(std::stoi(iso));
+    return result == mav_camera::Result::Success;
 }
 
 std::string CameraLocalClient::get_shutter_speed_value() {
