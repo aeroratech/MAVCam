@@ -103,9 +103,15 @@ private:
     */
     bool set_iso(std::string iso);
     /**
-     * @brief get shutter speed value
+     * @brief init shutter speed
+     * @details prefer to use store shutter speed
+     * @return current shutter speed
      */
-    std::string get_shutter_speed_value();
+    std::string init_shutter_speed();
+    /**
+     * @brief set shutter speed
+    */
+    bool set_shutter_speed(std::string shutter_speed);
     /**
      * @brief get video resoltuion
      */

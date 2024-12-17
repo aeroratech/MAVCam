@@ -429,8 +429,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     } else if (setting.setting_id == kISOName) {
         set_success = set_iso(setting.option.option_id);
     } else if (setting.setting_id == kShutterSpeedName) {
-        auto result = _mav_camera->set_shutter_speed(setting.option.option_id);
-        set_success = result == mav_camera::Result::Success;
+        set_success = set_shutter_speed(setting.option.option_id);
     } else if (setting.setting_id == kVideoResolution) {
         set_success = set_video_resolution(setting.option.option_id);
     } else if (setting.setting_id == kMeteringModeName) {
@@ -644,7 +643,7 @@ bool CameraLocalClient::init() {
     _settings[kExposureMode] = init_exposure_mode();
     _settings[kEVName] = init_exposure_value();
     _settings[kISOName] = init_iso();
-    _settings[kShutterSpeedName] = get_shutter_speed_value();
+    _settings[kShutterSpeedName] = init_shutter_speed();
     _settings[kVideoFormat] = "1";
     _settings[kVideoResolution] = get_video_resolution();
     _settings[kMeteringModeName] = init_metering_mode();
@@ -865,31 +864,45 @@ bool CameraLocalClient::set_iso(std::string iso) {
     return result == mav_camera::Result::Success;
 }
 
-std::string CameraLocalClient::get_shutter_speed_value() {
-    auto [result, value] = _mav_camera->get_shutter_speed();
-    if (result != mav_camera::Result::Success) {
-        base::LogDebug() << "Cannot get shutterspeed"
-                         << convert_camera_result_to_mav_server_result(result);
-        return "0.01";  // default value
-    }
-    std::size_t pos = value.find('/');
-    if (pos != std::string::npos) {
-        // Split the string at '/'
-        std::string num_str = value.substr(0, pos);
-        std::string den_str = value.substr(pos + 1);
+std::string CameraLocalClient::init_shutter_speed() {
+    auto store_shutter_speed = _camera_param.get_value(kShutterSpeedName);
+    if (store_shutter_speed.empty()) {
+        std::string shutter_speed = "";
+        auto [result, value] = _mav_camera->get_shutter_speed();
+        if (result != mav_camera::Result::Success) {
+            base::LogDebug() << "Cannot get shutterspeed"
+                             << convert_camera_result_to_mav_server_result(result);
+            shutter_speed = "0.01";  // default value
+        }
+        std::size_t pos = value.find('/');
+        if (pos != std::string::npos) {
+            // Split the string at '/'
+            std::string num_str = value.substr(0, pos);
+            std::string den_str = value.substr(pos + 1);
 
-        // Convert to float
-        float numerator = std::stof(num_str);
-        float denominator = std::stof(den_str);
+            // Convert to float
+            float numerator = std::stof(num_str);
+            float denominator = std::stof(den_str);
 
-        // Perform the division
-        auto convert_result = std::to_string(numerator / denominator);
-        base::LogDebug() << "current shutter speed is : " << convert_result;
-        return convert_result;
+            // Perform the division
+            auto convert_result = std::to_string(numerator / denominator);
+            base::LogDebug() << "current shutter speed is : " << convert_result;
+            shutter_speed = convert_result;
+        } else {
+            // If there is no '/', assume it's a whole number
+            shutter_speed = value;
+        }
+        _camera_param.set_value(kShutterSpeedName, shutter_speed);
+        return shutter_speed;
     } else {
-        // If there is no '/', assume it's a whole number
-        return value;
+        set_shutter_speed(store_shutter_speed);
+        return store_shutter_speed;
     }
+}
+
+bool CameraLocalClient::set_shutter_speed(std::string shutter_speed) {
+    auto result = _mav_camera->set_shutter_speed(shutter_speed);
+    return result == mav_camera::Result::Success;
 }
 
 std::string CameraLocalClient::get_video_resolution() {
