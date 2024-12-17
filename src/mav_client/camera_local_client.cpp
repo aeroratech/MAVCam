@@ -446,7 +446,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = false;
     }
 
-    // when set success update the settings value
+    // when set success update the settings value and store value
     if (set_success) {
         _settings[setting.setting_id] = setting.option.option_id;
         _camera_param.set_value(setting.setting_id, setting.option.option_id);
@@ -511,7 +511,6 @@ bool CameraLocalClient::init() {
 
     /************** Camera Mode *************/
     auto camera_mode = mav_camera::Mode::Photo;
-
     const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
     if (init_camera_mode != NULL) {
         if (strncmp(init_camera_mode, "0", 1) == 0) {
@@ -644,7 +643,7 @@ bool CameraLocalClient::init() {
     // init all settings
     auto display_mode = init_camera_display_mode();
     _settings[kCameraDisplayModeName] = display_mode;
-    std::string wb_mode = get_whitebalance_mode();
+    std::string wb_mode = init_whitebalance_mode();
     _settings[kWhitebalanceModeName] = wb_mode;
     // 0 for auto exposure mode
     _settings[kExposureMode] = "0";
@@ -697,25 +696,6 @@ mavsdk::Camera::Setting CameraLocalClient::build_setting(std::string name, std::
     return setting;
 }
 
-bool CameraLocalClient::set_camera_display_mode(std::string mode) {
-    mav_camera::Result result = mav_camera::Result::Unknown;
-    if (mode == "0") {
-        result = _mav_camera->set_preview_stream_output_type(
-            mav_camera::PreivewStreamOutputType::RGBStreamOnly);
-    } else if (mode == "1") {
-        result = _mav_camera->set_preview_stream_output_type(
-            mav_camera::PreivewStreamOutputType::InfraredStreamOnly);
-    } else if (mode == "2") {
-        result = _mav_camera->set_preview_stream_output_type(
-            mav_camera::PreivewStreamOutputType::MixSideBySide);
-    } else if (mode == "3") {
-        result = _mav_camera->set_preview_stream_output_type(
-            mav_camera::PreivewStreamOutputType::MixPIP);
-    }
-    base::LogDebug() << "set camera display mode to " << mode << " result " << int(result);
-    return result == mav_camera::Result::Success;
-}
-
 std::string CameraLocalClient::init_camera_display_mode() {
     auto store_display_mode = _camera_param.get_value(kCameraDisplayModeName);
     if (store_display_mode.empty()) {
@@ -743,23 +723,28 @@ std::string CameraLocalClient::init_camera_display_mode() {
         _camera_param.set_value(kCameraDisplayModeName, default_mode);
         return default_mode;
     } else {
-        if (store_display_mode == "0") {
-            _mav_camera->set_preview_stream_output_type(
-                mav_camera::PreivewStreamOutputType::RGBStreamOnly);
-        } else if (store_display_mode == "1") {
-            _mav_camera->set_preview_stream_output_type(
-                mav_camera::PreivewStreamOutputType::InfraredStreamOnly);
-        } else if (store_display_mode == "2") {
-            _mav_camera->set_preview_stream_output_type(
-                mav_camera::PreivewStreamOutputType::MixSideBySide);
-        } else if (store_display_mode == "3") {
-            _mav_camera->set_preview_stream_output_type(
-                mav_camera::PreivewStreamOutputType::MixPIP);
-        }
+        set_camera_display_mode(store_display_mode);
         return store_display_mode;
     }
+}
 
-    return "0";
+bool CameraLocalClient::set_camera_display_mode(std::string mode) {
+    mav_camera::Result result = mav_camera::Result::Unknown;
+    if (mode == "0") {
+        result = _mav_camera->set_preview_stream_output_type(
+            mav_camera::PreivewStreamOutputType::RGBStreamOnly);
+    } else if (mode == "1") {
+        result = _mav_camera->set_preview_stream_output_type(
+            mav_camera::PreivewStreamOutputType::InfraredStreamOnly);
+    } else if (mode == "2") {
+        result = _mav_camera->set_preview_stream_output_type(
+            mav_camera::PreivewStreamOutputType::MixSideBySide);
+    } else if (mode == "3") {
+        result = _mav_camera->set_preview_stream_output_type(
+            mav_camera::PreivewStreamOutputType::MixPIP);
+    }
+    base::LogDebug() << "set camera display mode to " << mode << " result " << int(result);
+    return result == mav_camera::Result::Success;
 }
 
 /**
@@ -771,6 +756,41 @@ std::string CameraLocalClient::init_camera_display_mode() {
     <option name="Cloudy" value="5" />
     <option name="Fluorescent" value="7" />
 */
+std::string CameraLocalClient::init_whitebalance_mode() {
+    auto store_whitebalance = _camera_param.get_value(kWhitebalanceModeName);
+    if (store_whitebalance.empty()) {
+        auto [result, value] = _mav_camera->get_white_balance();
+        std::string whitebalance = "0";
+        if (result != mav_camera::Result::Success) {
+            base::LogError() << "Cannot get whitebalance mode"
+                             << convert_camera_result_to_mav_server_result(result);
+            whitebalance = "0";
+        } else {
+            if (value == mav_camera::kAutoWhitebalanceValue) {
+                whitebalance = "0";
+            } else if (value == 5500) {
+                whitebalance = "1";
+            } else if (value == 6500) {
+                whitebalance = "2";
+            } else if (value == 7500) {
+                whitebalance = "3";
+            } else if (value == 2700) {
+                whitebalance = "4";
+            } else if (value == 4000) {
+                whitebalance = "5";
+            } else {
+                base::LogWarn() << "invalid white balance value " << value;
+                whitebalance = "0";
+            }
+        }
+        _camera_param.set_value(kWhitebalanceModeName, whitebalance);
+        return whitebalance;
+    } else {
+        set_whitebalance_mode(store_whitebalance);
+        return store_whitebalance;
+    }
+}
+
 bool CameraLocalClient::set_whitebalance_mode(std::string mode) {
     mav_camera::Result result;
     if (mode == "0") {  // Auto
@@ -789,30 +809,6 @@ bool CameraLocalClient::set_whitebalance_mode(std::string mode) {
     base::LogDebug() << "set whitebalance mode to " << mode << " result " << (int)result;
 
     return result == mav_camera::Result::Success;
-}
-
-std::string CameraLocalClient::get_whitebalance_mode() {
-    auto [result, value] = _mav_camera->get_white_balance();
-    if (result != mav_camera::Result::Success) {
-        base::LogError() << "Cannot get whitebalance mode"
-                         << convert_camera_result_to_mav_server_result(result);
-        return "0";
-    }
-    if (value == mav_camera::kAutoWhitebalanceValue) {
-        return "0";
-    } else if (value == 5500) {
-        return "1";
-    } else if (value == 6500) {
-        return "2";
-    } else if (value == 7500) {
-        return "3";
-    } else if (value == 2700) {
-        return "4";
-    } else if (value == 4000) {
-        return "5";
-    }
-    base::LogWarn() << "invalid white balance value " << value;
-    return "0";
 }
 
 std::string CameraLocalClient::get_ev_value() {
