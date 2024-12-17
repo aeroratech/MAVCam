@@ -147,6 +147,12 @@ private:
      */
     void free_ir_camera();
     /**
+     * @brief init ir camera palette
+     * @details prefer to use store ir palette
+     * @return current ir palette
+     */
+    std::string init_ir_palette();
+    /**
      * @brief set ir camera palette
      */
     bool set_ir_palette(std::string color_mode);
