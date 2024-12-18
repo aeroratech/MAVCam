@@ -422,8 +422,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     } else if (setting.setting_id == kWhitebalanceModeName) {  // whitebalance mode
         set_success = set_whitebalance_mode(setting.option.option_id);
     } else if (setting.setting_id == kExposureMode) {
-        // exposure mode not need set to camera
-        set_success = true;
+        set_success = set_exposure_mode(setting.option.option_id);
     } else if (setting.setting_id == kEVName) {  // exposure value
         set_success = set_exposure_value(setting.option.option_id);
     } else if (setting.setting_id == kISOName) {
@@ -797,13 +796,23 @@ bool CameraLocalClient::set_whitebalance_mode(std::string mode) {
 std::string CameraLocalClient::init_exposure_mode() {
     auto store_exposure_mode = _camera_param.get_value(kExposureMode);
     if (store_exposure_mode.empty()) {
-        std::string exposure_mode = "0";  // 0 for auto mode
+        std::string exposure_mode = "0";  // default exposure mode is Auto
         _camera_param.set_value(kExposureMode, exposure_mode);
         return exposure_mode;
     } else {
-        // not need set exposure mode to camera
+        set_exposure_mode(store_exposure_mode);
         return store_exposure_mode;
     }
+}
+
+bool CameraLocalClient::set_exposure_mode(std::string mode) {
+    mav_camera::Result result;
+    if (mode == "0") {
+        result = _mav_camera->set_ae_mode(mav_camera::AEMode::Auto);
+    } else {
+        result = _mav_camera->set_ae_mode(mav_camera::AEMode::Manual);
+    }
+    return result == mav_camera::Result::Success;
 }
 
 std::string CameraLocalClient::init_exposure_value() {

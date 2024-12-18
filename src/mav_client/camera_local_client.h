@@ -79,9 +79,13 @@ private:
     /**
      * @brief init exposure mode
      * @details prefer to use store exposure mode
-     * @return current exposure mode
+     * @return current exposure mode, 0 for Auto, 1 for Manual
      */
     std::string init_exposure_mode();
+    /**
+     * @brief set exposure mode
+     */
+    bool set_exposure_mode(std::string mode);
     /**
      * @brief init camera exposure value
      * @details prefer to use store exposure value
