@@ -220,7 +220,6 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         //TODO (Thomas) : hard code
         information.definition_file_version = 10;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
-
     } else {
         information.vendor_name = "Unknown";
         information.model_name = "Unknown";
@@ -503,7 +502,7 @@ bool CameraLocalClient::init() {
     options.preview_v4l2_output = false;
     options.preview_weston_output = true;
 
-    ///< init priority is env > sotre > default
+    ///< init priority is env > store > default
 
     /************** Camera Mode *************/
     auto camera_mode = mav_camera::Mode::Photo;
@@ -832,7 +831,10 @@ std::string CameraLocalClient::init_exposure_value() {
         _camera_param.set_value(kEVName, ev);
         return ev;
     } else {
-        set_exposure_value(store_ev);
+        // in auto exposure mode need set value again
+        if (_settings[kExposureMode] == "0") {
+            set_exposure_value(store_ev);
+        }
         return store_ev;
     }
 }
@@ -856,7 +858,10 @@ std::string CameraLocalClient::init_iso() {
         _camera_param.set_value(kISOName, iso);
         return iso;
     } else {
-        set_iso(store_iso);
+        // in manual exposure mode need set value again
+        if (_settings[kExposureMode] == "1") {
+            set_iso(store_iso);
+        }
         return store_iso;
     }
 }
@@ -897,7 +902,10 @@ std::string CameraLocalClient::init_shutter_speed() {
         _camera_param.set_value(kShutterSpeedName, shutter_speed);
         return shutter_speed;
     } else {
-        set_shutter_speed(store_shutter_speed);
+        // in manual exposure mode need set value again
+        if (_settings[kExposureMode] == "1") {
+            set_shutter_speed(store_shutter_speed);
+        }
         return store_shutter_speed;
     }
 }
