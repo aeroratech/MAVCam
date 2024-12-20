@@ -69,6 +69,7 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
     auto convert_result = convert_camera_result_to_mav_server_result(result);
     if (convert_result == mavsdk::CameraServer::Result::Success) {
         _image_count++;
+        switch_led_mode(LedMode::TakePhoto);
     }
     return convert_result;
 }
@@ -84,6 +85,7 @@ mavsdk::CameraServer::Result CameraLocalClient::start_video() {
     if (mav_result == mavsdk::CameraServer::Result::Success) {
         _is_recording_video = true;
         _start_video_time = std::chrono::steady_clock::now();
+        switch_led_mode(LedMode::Recording);
     }
     return mav_result;
 }
@@ -102,6 +104,7 @@ mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
     auto mav_result = convert_camera_result_to_mav_server_result(result);
     if (mav_result == mavsdk::CameraServer::Result::Success) {
         _is_recording_video = false;
+        switch_led_mode(LedMode::Normal);
     }
     return mav_result;
 }

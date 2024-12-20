@@ -6,7 +6,8 @@ enum class LedMode {
     Normal,       ///< normal mode
     Dead,         ///< mav server has quit
     SDCardError,  ///< sdcard error
-    Recording,
+    Recording,    ///< start video recording
+    TakePhoto,    ///< take photo
 };
 
 void switch_led_mode(LedMode mode);
