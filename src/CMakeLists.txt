@@ -12,6 +12,7 @@ add_subdirectory(mav_client)
 if (BUILD_SERVER)
     add_subdirectory(mav_server)
 endif()
+add_subdirectory(mav_watch)
 
 #install definition file
 set(INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/share/mav-cam/definition/)
