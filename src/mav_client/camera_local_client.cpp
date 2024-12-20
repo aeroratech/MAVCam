@@ -10,6 +10,7 @@
 #include <thread>
 
 #include "base/log.h"
+#include "led_control/led_control.h"
 
 namespace mavcam {
 
@@ -39,6 +40,8 @@ static int32_t kSnapshotHalfWidth = 1920;
 static int32_t kSnapshotHalfHeight = 1440;
 static const int32_t kVideoWidth = 3840;
 static const int32_t kVideoHeight = 2160;
+
+static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 
 #define QCOM_CAMERA_LIBERAY "libqcom_camera.so"
 #define BOSON_CAMERA_LIBRARY "libboson-sdk-clientfiles_64.so"
@@ -633,6 +636,7 @@ bool CameraLocalClient::init() {
         [&](mav_camera::Result result, mav_camera::StorageInformation storage_information) {
             std::lock_guard<std::mutex> lock(_storage_information_mutex);
             _current_storage_information = storage_information;
+            check_sdcard_status();
         });
 
     // init all settings
@@ -1130,6 +1134,23 @@ bool CameraLocalClient::set_ir_FFC(std::string /*ignore*/) {
         return result == 0;
     }
     return false;
+}
+
+void CameraLocalClient::check_sdcard_status() {
+    bool sdcard_valid = _current_storage_information.storage_status ==
+                        mav_camera::StorageInformation::StorageStatus::Formatted;
+    bool sdcard_full = _current_storage_information.available_storage_mib < kSDCardMinAvaliableMB;
+    if (!sdcard_valid || sdcard_full) {
+        if (_sdcard_valid) {
+            _sdcard_valid = false;
+            switch_led_mode(mavcam::LedMode::SDCardError);
+        }
+    } else {
+        if (!_sdcard_valid) {
+            _sdcard_valid = true;
+            switch_led_mode(mavcam::LedMode::Normal);
+        }
+    }
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::convert_camera_result_to_mav_server_result(

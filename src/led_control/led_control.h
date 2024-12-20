@@ -3,8 +3,9 @@
 namespace mavcam {
 
 enum class LedMode {
-    Normal,  ///< normal mode
-    Dead,    ///< mav server has quit
+    Normal,       ///< normal mode
+    Dead,         ///< mav server has quit
+    SDCardError,  ///< sdcard error
     Recording,
 };
 
