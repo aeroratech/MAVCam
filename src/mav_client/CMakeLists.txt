@@ -9,6 +9,7 @@ set(MAV_CLIENT_SOURCES
     camera_client.cpp
     camera_local_client.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../camera_param/camera_param.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../led_control/led_control.cc
 )
 
 if (BUILD_SERVER)
