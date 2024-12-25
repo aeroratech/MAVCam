@@ -64,6 +64,12 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
     if (_mav_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
+    {  // when sdcard storage is less then avaliable space just return failed
+        std::lock_guard<std::mutex> lock(_storage_information_mutex);
+        if (_current_storage_information.available_storage_mib < kSDCardMinAvaliableMB) {
+            return mavsdk::CameraServer::Result::Denied;
+        }
+    }
     std::lock_guard<std::mutex> lock(_mutex);
     auto result = _mav_camera->take_photo();
     auto convert_result = convert_camera_result_to_mav_server_result(result);
@@ -79,7 +85,14 @@ mavsdk::CameraServer::Result CameraLocalClient::start_video() {
     if (_mav_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
+    {  // when sdcard storage is less then avaliable space just return failed
+        std::lock_guard<std::mutex> lock(_storage_information_mutex);
+        if (_current_storage_information.available_storage_mib < kSDCardMinAvaliableMB) {
+            return mavsdk::CameraServer::Result::Denied;
+        }
+    }
     std::lock_guard<std::mutex> lock(_mutex);
+
     auto result = _mav_camera->start_video();
     auto mav_result = convert_camera_result_to_mav_server_result(result);
     if (mav_result == mavsdk::CameraServer::Result::Success) {
@@ -1144,6 +1157,10 @@ void CameraLocalClient::check_sdcard_status() {
                         mav_camera::StorageInformation::StorageStatus::Formatted;
     bool sdcard_full = _current_storage_information.available_storage_mib < kSDCardMinAvaliableMB;
     if (!sdcard_valid || sdcard_full) {
+        // when sdcard is umont or full, need stop video recording
+        if (_is_recording_video) {
+            stop_video();
+        }
         if (_sdcard_valid) {
             _sdcard_valid = false;
             switch_led_mode(mavcam::LedMode::SDCardError);
