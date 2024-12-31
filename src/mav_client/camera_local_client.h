@@ -143,6 +143,16 @@ private:
      */
     bool set_metering_mode(std::string value);
     /**
+     * @brief init sharpness value
+     * @details prefer to use store sharpness value
+     * @return current sharpness value
+     */
+    std::string init_sharpness();
+    /**
+     * @brief set sharpness value
+     */
+    bool set_sharpness(std::string value);
+    /**
      * @brief init ir camera
      */
     bool init_ir_camera();

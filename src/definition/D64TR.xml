@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="10">
+    <definition version="11">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -205,6 +205,14 @@
             <options>
                 <option name="Multi" value="0" />
                 <option name="Center" value="1" />
+            </options>
+        </parameter>
+        <parameter name="CAM_SHARPNESS" type="int32" default="0">
+            <description>Sharpness</description>
+            <options>
+                <option name="Standard" value="0" />
+                <option name="High" value="1" />
+                <option name="Super High" value="2" />
             </options>
         </parameter>
         <!-- IR Camera Param -->
