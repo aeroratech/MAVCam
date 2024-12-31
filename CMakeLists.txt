@@ -10,7 +10,7 @@ option(BUILD_MAVSDK "Build mavsdk dependency" ON)
 project(MAVCam)
 
 # manually change version
-set(VERSION_STR "v0.7.0")
+set(VERSION_STR "v0.8.0")
 message(STATUS "Version: ${VERSION_STR}")
 STRING(REGEX REPLACE v\([0-9]+\).[0-9]+.[0-9]+.*$ \\1 VERSION_MAJOR "${VERSION_STR}")
 STRING(REGEX REPLACE v[0-9]+.\([0-9]+\).[0-9]+.*$ \\1 VERSION_MINOR "${VERSION_STR}")
