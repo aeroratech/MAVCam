@@ -26,6 +26,7 @@ const std::string kEVName = "CAM_EV";
 const std::string kISOName = "CAM_ISO";
 const std::string kShutterSpeedName = "CAM_SHUTTERSPD";
 const std::string kMeteringModeName = "CAM_METER";
+const std::string kSharpnessName = "CAM_SHARPNESS";
 
 const std::string kIrCamPalette = "IRCAM_PALETTE";
 const std::string kIrCamFFC = "IRCAM_FFC";
@@ -196,6 +197,8 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
         _camera_param.set_value(kVideoFormat, "1");
         _settings[kMeteringModeName] = "0";
         _camera_param.set_value(kMeteringModeName, "0");
+        _settings[kSharpnessName] = "0";
+        _camera_param.set_value(kSharpnessName, "0");
     }
     return mavsdk::CameraServer::Result::Success;
 }
@@ -237,7 +240,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 10;
+        information.definition_file_version = 11;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -451,6 +454,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_video_resolution(setting.option.option_id);
     } else if (setting.setting_id == kMeteringModeName) {
         set_success = set_metering_mode(setting.option.option_id);
+    } else if (setting.setting_id == kSharpnessName) {
+        set_success = set_sharpness(setting.option.option_id);
     } else if (setting.setting_id == kIrCamPalette) {
         set_success = set_ir_palette(setting.option.option_id);
     } else if (setting.setting_id == kIrCamFFC) {
@@ -665,6 +670,7 @@ bool CameraLocalClient::init() {
     _settings[kVideoFormat] = init_video_format();
     _settings[kVideoResolution] = init_video_resolution();
     _settings[kMeteringModeName] = init_metering_mode();
+    _settings[kSharpnessName] = init_sharpness();
 
     // init ir camera
     init_ir_camera();
@@ -1040,6 +1046,33 @@ bool CameraLocalClient::set_metering_mode(std::string value) {
     auto result = _mav_camera->set_metering_mode(metering_mode);
     if (result != mav_camera::Result::Success) {
         base::LogError() << "Failed to set metering mode : " << metering_mode;
+    }
+    return result == mav_camera::Result::Success;
+}
+
+std::string CameraLocalClient::init_sharpness() {
+    auto store_sharpness = _camera_param.get_value(kSharpnessName);
+    if (store_sharpness.empty()) {
+        std::string sharpness = "0";
+        _camera_param.set_value(kSharpnessName, sharpness);
+        return sharpness;
+    } else {
+        set_sharpness(store_sharpness);
+        return store_sharpness;
+    }
+}
+
+bool CameraLocalClient::set_sharpness(std::string value) {
+    int32_t sharpness = std::stoi(value);
+    if (sharpness < 0 || sharpness > 2) {
+        base::LogError() << "Invalid sharpness value " << sharpness;
+        return false;
+    }
+    int sharpness_values[] = {2, 4, 6};
+    int convert_sharpness = sharpness_values[sharpness];
+    auto result = _mav_camera->set_sharpness(convert_sharpness);
+    if (result != mav_camera::Result::Success) {
+        base::LogError() << "Failed to set sharpness : " << sharpness;
     }
     return result == mav_camera::Result::Success;
 }
