@@ -153,6 +153,10 @@ private:
      */
     bool set_sharpness(std::string value);
     /**
+     * @brief set ae lock
+     */
+    bool set_ae_lock(std::string value);
+    /**
      * @brief init ir camera
      */
     bool init_ir_camera();

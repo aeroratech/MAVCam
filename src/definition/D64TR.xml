@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="11">
+    <definition version="12">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -213,6 +213,13 @@
                 <option name="Standard" value="0" />
                 <option name="High" value="1" />
                 <option name="Super High" value="2" />
+            </options>
+        </parameter>
+        <parameter name="CAM_AE_LOCK" type="int32" default="0">
+            <description>AE Lock</description>
+            <options>
+                <option name="Unlock" value="0" />
+                <option name="Lock" value="1" />
             </options>
         </parameter>
         <!-- IR Camera Param -->
