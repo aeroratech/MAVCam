@@ -27,6 +27,7 @@ const std::string kISOName = "CAM_ISO";
 const std::string kShutterSpeedName = "CAM_SHUTTERSPD";
 const std::string kMeteringModeName = "CAM_METER";
 const std::string kSharpnessName = "CAM_SHARPNESS";
+const std::string kAELockName = "CAM_AE_LOCK";
 
 const std::string kIrCamPalette = "IRCAM_PALETTE";
 const std::string kIrCamFFC = "IRCAM_FFC";
@@ -199,6 +200,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
         _camera_param.set_value(kMeteringModeName, "0");
         _settings[kSharpnessName] = "0";
         _camera_param.set_value(kSharpnessName, "0");
+        _settings[kAELockName] = "0";  // ae lock don't store to param
     }
     return mavsdk::CameraServer::Result::Success;
 }
@@ -240,7 +242,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 11;
+        information.definition_file_version = 12;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -456,6 +458,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_metering_mode(setting.option.option_id);
     } else if (setting.setting_id == kSharpnessName) {
         set_success = set_sharpness(setting.option.option_id);
+    } else if (setting.setting_id == kAELockName) {
+        set_success = set_ae_lock(setting.option.option_id);
     } else if (setting.setting_id == kIrCamPalette) {
         set_success = set_ir_palette(setting.option.option_id);
     } else if (setting.setting_id == kIrCamFFC) {
@@ -671,6 +675,8 @@ bool CameraLocalClient::init() {
     _settings[kVideoResolution] = init_video_resolution();
     _settings[kMeteringModeName] = init_metering_mode();
     _settings[kSharpnessName] = init_sharpness();
+    // always disable ae lock on init
+    _settings[kAELockName] = "0";
 
     // init ir camera
     init_ir_camera();
@@ -1073,6 +1079,15 @@ bool CameraLocalClient::set_sharpness(std::string value) {
     auto result = _mav_camera->set_sharpness(convert_sharpness);
     if (result != mav_camera::Result::Success) {
         base::LogError() << "Failed to set sharpness : " << sharpness;
+    }
+    return result == mav_camera::Result::Success;
+}
+
+bool CameraLocalClient::set_ae_lock(std::string value) {
+    int32_t ae_lock = std::stoi(value);
+    auto result = _mav_camera->set_ae_lock(ae_lock != 0);
+    if (result != mav_camera::Result::Success) {
+        base::LogError() << "Failed to set aelock";
     }
     return result == mav_camera::Result::Success;
 }
