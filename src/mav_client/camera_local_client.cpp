@@ -119,6 +119,12 @@ mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
     auto mav_result = convert_camera_result_to_mav_server_result(result);
     if (mav_result == mavsdk::CameraServer::Result::Success) {
         _is_recording_video = false;
+        auto current_time = std::chrono::steady_clock::now();
+        auto recording_time_s =
+            std::chrono::duration_cast<std::chrono::seconds>(current_time - _start_video_time)
+                .count();
+        base::LogInfo() << "Stop video recording after " << recording_time_s << " s";
+
         switch_led_mode(LedMode::Normal);
     }
     return mav_result;
