@@ -13,7 +13,6 @@ static auto constexpr default_connection = "udp://192.168.251.2:14550";
 static auto constexpr default_rpc_port = 50051;
 static std::string default_ftp_path = "/usr/share/mav-cam/";
 static std::string default_log_path = "/data/camera/";
-static std::fstream *default_log_stream = nullptr;
 static bool compatible_qgc = false;
 static std::string default_store_prefix = "NDAA";
 
@@ -132,7 +131,8 @@ int main(int argc, const char *argv[]) {
         base::LogInfo() << "Init camera snapshot resolution is " << init_snapshot_resolution;
     }
 
-    if (!client.init(connection_url, use_local, rpc_port, default_ftp_path, compatible_qgc)) {
+    if (!client.init(connection_url, use_local, rpc_port, default_ftp_path, compatible_qgc,
+                     default_log_path)) {
         std::cout << "Cannot init mav client " << connection_url << std::endl;
         return 1;
     }
@@ -140,11 +140,6 @@ int main(int argc, const char *argv[]) {
     client.start_runloop();
 
     base::LogDebug() << "Quit mav client";
-    if (default_log_stream != nullptr) {
-        default_log_stream->close();
-        delete default_log_stream;
-        default_log_stream = nullptr;
-    }
     return 0;
 }
 
@@ -177,44 +172,47 @@ void usage(const char *bin_name) {
 }
 
 static void init_log() {
-    if (!default_log_path.empty()) {
-        std::string full_path = default_log_path + "mav_client.log";
-        default_log_stream = new std::fstream(full_path, std::fstream::out | std::fstream::binary);
-        if (!default_log_stream->is_open()) {
-            base::LogError() << "Failed to open log file: " + full_path;
-        }
-        base::log::subscribe([](base::log::Level level, const std::string &message,
-                                const std::string &file, int line) -> bool {
-            std::stringstream ss;
-            time_t rawtime;
-            time(&rawtime);
-            struct tm *timeinfo = localtime(&rawtime);
-            char time_buffer[10]{};
-            strftime(time_buffer, sizeof(time_buffer), "%I:%M:%S", timeinfo);
-            ss << "[" << time_buffer;
-
-            switch (level) {
-                case base::log::Level::Debug:
-                    ss << "|Debug] ";
-                    break;
-                case base::log::Level::Info:
-                    ss << "|Info ] ";
-                    break;
-                case base::log::Level::Warn:
-                    ss << "|Warn ] ";
-                    break;
-                case base::log::Level::Err:
-                    ss << "|Error] ";
-                    break;
-            }
-            ss << " " << message << "\n";
-            if (default_log_stream->good()) {
-                default_log_stream->write(ss.str().c_str(), ss.str().size());
-                default_log_stream->flush();
-            }
-            return false;
-        });
+    if (default_log_path.empty()) {
+        return;
     }
+    std::string full_path = default_log_path + "mav_client.log";
+    auto log_stream =
+        std::make_shared<std::fstream>(full_path, std::fstream::out | std::fstream::binary);
+    if (!log_stream->is_open()) {
+        base::LogError() << "Failed to open log file: " + full_path;
+        return;
+    }
+    base::log::subscribe([log_stream](base::log::Level level, const std::string &message,
+                                      const std::string &file, int line) -> bool {
+        std::stringstream ss;
+        time_t rawtime;
+        time(&rawtime);
+        struct tm *timeinfo = localtime(&rawtime);
+        char time_buffer[10]{};
+        strftime(time_buffer, sizeof(time_buffer), "%I:%M:%S", timeinfo);
+        ss << "[" << time_buffer;
+
+        switch (level) {
+            case base::log::Level::Debug:
+                ss << "|Debug] ";
+                break;
+            case base::log::Level::Info:
+                ss << "|Info ] ";
+                break;
+            case base::log::Level::Warn:
+                ss << "|Warn ] ";
+                break;
+            case base::log::Level::Err:
+                ss << "|Error] ";
+                break;
+        }
+        ss << " " << message << "\n";
+        if (log_stream->good()) {
+            log_stream->write(ss.str().c_str(), ss.str().size());
+            log_stream->flush();
+        }
+        return false;
+    });
 }
 
 bool is_integer(const std::string &tested_integer) {
