@@ -1,11 +1,14 @@
 #include "mav_client.h"
 
+#include <mavsdk/log_callback.h>
 #include <mavsdk/mavsdk.h>
 #include <mavsdk/plugins/camera_server/camera_server.h>
 #include <mavsdk/plugins/ftp_server/ftp_server.h>
 #include <mavsdk/plugins/param_server/param_server.h>
 
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>  // for std::setprecision
 #include <thread>
 
@@ -16,13 +19,14 @@
 namespace mavcam {
 
 bool MavClient::init(std::string &connection_url, bool use_local, int32_t rpc_port,
-                     std::string &ftp_root_path, bool compatible_qgc) {
+                     std::string &ftp_root_path, bool compatible_qgc, std::string &log_path) {
     // TODO need check connection url first
     _connection_url = connection_url;
     _rpc_port = rpc_port;
     _ftp_root_path = ftp_root_path;
     _compatible_qgc = compatible_qgc;
 
+    init_mavsdk_log(log_path);
     if (use_local) {
         _camera_client = CreateLocalCameraClient();  // use local client
     } else {
@@ -252,6 +256,47 @@ void MavClient::fill_param(mavsdk::ParamServer &param_server) {
                                                          std::stoi(setting.option.option_id));
         }
     }
+}
+
+void MavClient::init_mavsdk_log(std::string &log_path) {
+    std::string full_path = log_path + "mavsdk.log";
+    auto log_stream =
+        std::make_shared<std::fstream>(full_path, std::fstream::out | std::fstream::binary);
+    if (!log_stream->is_open()) {
+        base::LogError() << "Failed to open mavsdk log file: " + full_path;
+        return;
+    }
+    mavsdk::log::subscribe([log_stream](mavsdk::log::Level level, const std::string &message,
+                                        const std::string &file, int line) -> bool {
+        std::stringstream ss;
+        time_t rawtime;
+        time(&rawtime);
+        struct tm *timeinfo = localtime(&rawtime);
+        char time_buffer[10]{};
+        strftime(time_buffer, sizeof(time_buffer), "%I:%M:%S", timeinfo);
+        ss << "[" << time_buffer;
+
+        switch (level) {
+            case mavsdk::log::Level::Debug:
+                ss << "|Debug] ";
+                break;
+            case mavsdk::log::Level::Info:
+                ss << "|Info ] ";
+                break;
+            case mavsdk::log::Level::Warn:
+                ss << "|Warn ] ";
+                break;
+            case mavsdk::log::Level::Err:
+                ss << "|Error] ";
+                break;
+        }
+        ss << " " << message << "\n";
+        if (log_stream->good()) {
+            log_stream->write(ss.str().c_str(), ss.str().size());
+            log_stream->flush();
+        }
+        return false;
+    });
 }
 
 }  // namespace mavcam

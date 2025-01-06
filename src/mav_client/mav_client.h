@@ -18,7 +18,7 @@ public:
     ~MavClient() {}
 public:
     bool init(std::string &connection_url, bool use_local, int32_t rpc_port,
-              std::string &ftp_root_path, bool compatible_qgc);
+              std::string &ftp_root_path, bool compatible_qgc, std::string &log_path);
     bool start_runloop();
     void stop_runloop();
 private:
@@ -26,6 +26,7 @@ private:
                                     mavsdk::ParamServer &param_server);
     void subscribe_param_operation(mavsdk::ParamServer &param_server);
     void fill_param(mavsdk::ParamServer &param_server);
+    void init_mavsdk_log(std::string &log_path);
 private:
     std::atomic<bool> _running;
     std::string _connection_url;
