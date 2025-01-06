@@ -39,7 +39,9 @@ bool MavClient::start_runloop() {
     if (_compatible_qgc) {
         component_type = mavsdk::Mavsdk::ComponentType::Autopilot;
     }
-    mavsdk::Mavsdk mavsdk{mavsdk::Mavsdk::Configuration{component_type}};
+    auto configuration = mavsdk::Mavsdk::Configuration{component_type};
+    mavsdk::Mavsdk mavsdk{configuration};
+    mavsdk.set_timeout_s(5);
 
     auto result = mavsdk.add_any_connection(_connection_url);
     if (result != mavsdk::ConnectionResult::Success) {
@@ -64,14 +66,15 @@ bool MavClient::start_runloop() {
 
     _running = true;
     switch_led_mode(LedMode::Normal);
-    while (_running) {
+    while (_running.load(std::memory_order_consume)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
+    base::LogDebug() << "quit run loop";
     return true;
 }
 
 void MavClient::stop_runloop() {
-    _running = false;
+    _running.store(false, std::memory_order_release);
 }
 
 void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
