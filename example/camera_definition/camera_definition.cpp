@@ -143,7 +143,6 @@ static std::string download_camera_definition_file_by_ftp(std::shared_ptr<mavsdk
 
 static void do_camera_settings(mavsdk::Camera &camera) {
     std::vector<std::pair<std::string, std::string>> settings;
-    camera.set_mode(mavsdk::Camera::Mode::Video);
     settings.push_back({"CAM_WBMODE", "1"});
     settings.push_back({"CAM_EXPMODE", "0"});
     settings.push_back({"CAM_EV", "2.0"});
@@ -159,9 +158,6 @@ static void do_camera_settings(mavsdk::Camera &camera) {
                       << " new value " << value << std::endl;
         }
     }
-
-    set_camera_settings(camera, "CAM_VIDFMT", "2");
-    set_camera_settings(camera, "CAM_VIDRES", "5");
 }
 
 static inline void set_camera_settings(mavsdk::Camera &camera, const std::string &name,
