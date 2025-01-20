@@ -78,6 +78,8 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
     if (convert_result == mavsdk::CameraServer::Result::Success) {
         _image_count++;
         switch_led_mode(LedMode::TakePhoto);
+    } else {
+        base::LogInfo() << "Take photo failed with result " << convert_result;
     }
     return convert_result;
 }
@@ -101,6 +103,8 @@ mavsdk::CameraServer::Result CameraLocalClient::start_video() {
         _is_recording_video = true;
         _start_video_time = std::chrono::steady_clock::now();
         switch_led_mode(LedMode::Recording);
+    } else {
+        base::LogInfo() << "start video recording failed with result " << mav_result;
     }
     return mav_result;
 }
@@ -126,6 +130,8 @@ mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
         base::LogInfo() << "Stop video recording after " << recording_time_s << " s";
 
         switch_led_mode(LedMode::Normal);
+    } else {
+        base::LogInfo() << "Stop video recording failed with result " << mav_result;
     }
     return mav_result;
 }
