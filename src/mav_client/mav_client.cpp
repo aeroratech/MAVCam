@@ -96,8 +96,13 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
     });
 
     camera_server.subscribe_take_photo([this, &camera_server](int32_t index) {
-        _camera_client->take_photo(index);
-
+        auto result = _camera_client->take_photo(index);
+        auto feedback_result = mavsdk::CameraServer::CameraFeedback::Ok;
+        auto success = true;
+        if (result != mavsdk::CameraServer::Result::Success) {
+            feedback_result = mavsdk::CameraServer::CameraFeedback::Failed;
+            success = false;
+        }
         // TODO no position info for now
         auto position = mavsdk::CameraServer::Position{};
         auto attitude = mavsdk::CameraServer::Quaternion{};
@@ -105,8 +110,7 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
         auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
                              std::chrono::system_clock::now().time_since_epoch())
                              .count();
-        auto success = true;
-        camera_server.respond_take_photo(mavsdk::CameraServer::CameraFeedback::Ok,
+        camera_server.respond_take_photo(feedback_result,
                                          mavsdk::CameraServer::CaptureInfo{
                                              .position = position,
                                              .attitude_quaternion = attitude,

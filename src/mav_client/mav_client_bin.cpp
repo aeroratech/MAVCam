@@ -118,7 +118,9 @@ int main(int argc, const char *argv[]) {
     init_log();
     signal(SIGINT, signal_handler);
 
-    base::LogDebug() << "Launch mav client";
+    base::LogInfo() << "Launch mav client";
+    base::LogInfo() << "MavCam version is " << VERSION;
+    base::LogInfo() << "MavCam build time is " << BUILD_TIME;
 
     setenv("MAVCAM_DEFAULT_STORE_PREFIX", default_store_prefix.c_str(), 1);
     base::LogInfo() << "Store prefix is " << default_store_prefix;

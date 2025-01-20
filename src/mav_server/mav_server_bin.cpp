@@ -93,7 +93,11 @@ int main(int argc, const char *argv[]) {
     base::create_folder_if_not_exit(default_log_path);
     init_log();
     signal(SIGINT, signal_handler);
+
     base::LogDebug() << "Launch mav server";
+    base::LogInfo() << "MavCam version is " << VERSION;
+    base::LogInfo() << "MavCam build time is " << BUILD_TIME;
+
     setenv("MAVCAM_DEFAULT_STORE_PREFIX", default_store_prefix.c_str(), 1);
     base::LogInfo() << "Store prefix is " << default_store_prefix;
     const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
