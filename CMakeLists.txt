@@ -20,8 +20,12 @@ message(STATUS "Version major: ${VERSION_MAJOR}")
 message(STATUS "Version minor: ${VERSION_MINOR}")
 message(STATUS "Version patch: ${VERSION_PATCH}")
 
-set(BUILD_TIME "")
-string(TIMESTAMP BUILD_TIME "%Y-%m-%dT%H:%M:%S")
+# use local time zone
+execute_process(
+    COMMAND date "+%Y-%m-%dT%H:%M:%S"
+    OUTPUT_VARIABLE BUILD_TIME
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 
 set(VERSION_STRING ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
