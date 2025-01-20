@@ -190,14 +190,22 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
 
     camera_server.subscribe_format_storage([this, &camera_server](int storage_id) {
         auto result = _camera_client->format_storage(storage_id);
-        camera_server.respond_format_storage(mavsdk::CameraServer::CameraFeedback::Ok);
+        if (result != mavsdk::CameraServer::Result::Success) {
+            camera_server.respond_format_storage(mavsdk::CameraServer::CameraFeedback::Failed);
+        } else {
+            camera_server.respond_format_storage(mavsdk::CameraServer::CameraFeedback::Ok);
+        }
     });
 
     camera_server.subscribe_reset_settings([this, &camera_server, &param_server](int camera_id) {
         auto result = _camera_client->reset_settings();
-        //reset settings need fill param again
-        fill_param(param_server);
-        camera_server.respond_reset_settings(mavsdk::CameraServer::CameraFeedback::Ok);
+        if (result != mavsdk::CameraServer::Result::Success) {
+            camera_server.respond_reset_settings(mavsdk::CameraServer::CameraFeedback::Failed);
+        } else {
+            //reset settings need fill param again
+            fill_param(param_server);
+            camera_server.respond_reset_settings(mavsdk::CameraServer::CameraFeedback::Ok);
+        }
     });
 
     camera_server.subscribe_settings([this, &camera_server](int reserved) {
