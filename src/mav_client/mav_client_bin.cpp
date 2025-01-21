@@ -13,7 +13,7 @@ static auto constexpr default_connection = "udp://192.168.251.2:14550";
 static auto constexpr default_rpc_port = 50051;
 static std::string default_ftp_path = "/usr/share/mav-cam/";
 static std::string default_log_path = "/data/camera/";
-static bool compatible_qgc = false;
+static bool work_as_autopilot = false;
 static std::string default_store_prefix = "NDAA";
 
 static void usage(const char *bin_name);
@@ -105,8 +105,8 @@ int main(int argc, const char *argv[]) {
             }
             i++;
             setenv("MAVCAM_INIT_SNAPSHOT_RES", snapshot_resolution.c_str(), 1);
-        } else if (current_arg == "--qgc") {
-            compatible_qgc = true;
+        } else if (current_arg == "--autopilot") {
+            work_as_autopilot = true;
         } else {
             std::cout << "Invalid option : " << current_arg << std::endl;
             usage(argv[0]);
@@ -121,6 +121,9 @@ int main(int argc, const char *argv[]) {
     base::LogInfo() << "Launch mav client";
     base::LogInfo() << "MavCam version is " << VERSION;
     base::LogInfo() << "MavCam build time is " << BUILD_TIME;
+    if (work_as_autopilot) {
+        base::LogInfo() << "Work as autopilot";
+    }
 
     setenv("MAVCAM_DEFAULT_STORE_PREFIX", default_store_prefix.c_str(), 1);
     base::LogInfo() << "Store prefix is " << default_store_prefix;
@@ -133,7 +136,7 @@ int main(int argc, const char *argv[]) {
         base::LogInfo() << "Init camera snapshot resolution is " << init_snapshot_resolution;
     }
 
-    if (!client.init(connection_url, use_local, rpc_port, default_ftp_path, compatible_qgc,
+    if (!client.init(connection_url, use_local, rpc_port, default_ftp_path, work_as_autopilot,
                      default_log_path)) {
         std::cout << "Cannot init mav client " << connection_url << std::endl;
         return 1;
@@ -169,8 +172,7 @@ void usage(const char *bin_name) {
               << default_store_prefix << '\n'
               << "\t--camera_mode  : init camera mode, 0 for photo mode 1 for video mode" << '\n'
               << "\t--snapshot_resolution : init snapshot resoltuion" << '\n'
-              << "\t--qgc          : work compatible with QGC(make mav_client work as Autopilot)"
-              << '\n';
+              << "\t--autopilot           : make mav_client work as Autopilot" << '\n';
 }
 
 static void init_log() {

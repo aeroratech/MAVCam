@@ -33,7 +33,7 @@ private:
     int32_t _rpc_port;
     CameraClient *_camera_client;
     std::string _ftp_root_path;
-    bool _compatible_qgc;
+    bool _work_as_autopilot;
 };
 
 }  // namespace mavcam
