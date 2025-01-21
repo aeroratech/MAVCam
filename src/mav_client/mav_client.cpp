@@ -2,13 +2,18 @@
 
 #include <mavsdk/log_callback.h>
 #include <mavsdk/mavsdk.h>
+#include <mavsdk/plugins/action_server/action_server.h>
 #include <mavsdk/plugins/camera_server/camera_server.h>
 #include <mavsdk/plugins/ftp_server/ftp_server.h>
+#include <mavsdk/plugins/mission_raw_server/mission_raw_server.h>
 #include <mavsdk/plugins/param_server/param_server.h>
+#include <mavsdk/plugins/telemetry/telemetry.h>
+#include <mavsdk/plugins/telemetry_server/telemetry_server.h>
 
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <iomanip>  // for std::setprecision
 #include <thread>
 
@@ -19,12 +24,12 @@
 namespace mavcam {
 
 bool MavClient::init(std::string &connection_url, bool use_local, int32_t rpc_port,
-                     std::string &ftp_root_path, bool compatible_qgc, std::string &log_path) {
+                     std::string &ftp_root_path, bool work_as_autopilot, std::string &log_path) {
     // TODO need check connection url first
     _connection_url = connection_url;
     _rpc_port = rpc_port;
     _ftp_root_path = ftp_root_path;
-    _compatible_qgc = compatible_qgc;
+    _work_as_autopilot = work_as_autopilot;
 
     init_mavsdk_log(log_path);
     if (use_local) {
@@ -40,7 +45,7 @@ bool MavClient::init(std::string &connection_url, bool use_local, int32_t rpc_po
 
 bool MavClient::start_runloop() {
     auto component_type = mavsdk::Mavsdk::ComponentType::Camera;
-    if (_compatible_qgc) {
+    if (_work_as_autopilot) {
         component_type = mavsdk::Mavsdk::ComponentType::Autopilot;
     }
     auto configuration = mavsdk::Mavsdk::Configuration{component_type};
@@ -221,6 +226,8 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
     auto ret = camera_server.set_information(information);
     if (ret != mavsdk::CameraServer::Result::Success) {
         base::LogError() << "Failed to set camera info";
+    } else {
+        base::LogInfo() << "Success set camera info";
     }
 
     // fill video stream info
