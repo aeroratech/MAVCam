@@ -41,8 +41,7 @@ if(BUILD_QCOM)
         DOWNLOAD_DIR "${DOWNLOAD_DIR}"
         PATCH_COMMAND patch -p1 < ${PROJECT_SOURCE_DIR}/0001-fixed-qcom-compile-error.patch && 
         patch -p1 < ${PROJECT_SOURCE_DIR}/0002-manually-set-MAVSDK-version.patch &&
-        patch -p1 < ${PROJECT_SOURCE_DIR}/0003-remove-Requires.private-from-pkgconfig.patch &&
-        patch -p1 < ${PROJECT_SOURCE_DIR}/0004-gimbal-should-use-yaw-not-yaw-absolute.patch
+        patch -p1 < ${PROJECT_SOURCE_DIR}/0003-remove-Requires.private-from-pkgconfig.patch
         CMAKE_ARGS "${CMAKE_ARGS}"
     )
 else()
