@@ -310,6 +310,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_video_stream_info(
 
 mavsdk::CameraServer::Result CameraLocalClient::fill_storage_information(
     mavsdk::CameraServer::StorageInformation &storage_information) {
+    // base::LogDebug() << "locally call fill storage information";
     std::lock_guard<std::mutex> lock(_storage_information_mutex);
     storage_information.total_storage_mib = _current_storage_information.total_storage_mib;
     storage_information.used_storage_mib = _current_storage_information.used_storage_mib;
@@ -385,7 +386,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_capture_status(
 
 mavsdk::CameraServer::Result CameraLocalClient::fill_settings(
     mavsdk::CameraServer::Settings &settings) {
-    base::LogDebug() << "locally call fill settings ";
+    // base::LogDebug() << "locally call fill settings ";
     if (_settings[kCameraModeName] == "0") {
         settings.mode = mavsdk::CameraServer::Mode::Photo;
     } else {
