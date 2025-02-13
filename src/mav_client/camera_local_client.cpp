@@ -1116,6 +1116,8 @@ bool CameraLocalClient::init_ir_camera() {
         base::LogError() << "Load module " << BOSON_CAMERA_LIBRARY << " failed "
                          << (err_str != NULL ? err_str : "unknown");
         return false;
+    } else {
+        base::LogDebug() << "Success load " << BOSON_CAMERA_LIBRARY;
     }
 
     create_boson_extension_api_fun create_boson_extension_api =
@@ -1159,6 +1161,27 @@ bool CameraLocalClient::init_ir_camera() {
         free(_ir_camera);
         _ir_camera = nullptr;
         return false;
+    }
+
+    auto result = _ir_camera->process_radiometric_images();
+    if (result == 0) {
+        base::LogInfo() << "Success process radiometric image";
+    } else {
+        base::LogError() << "Failed process radiometric image function, result: " << result;
+    }
+
+    BOSON_RADIOMETRY_RBFO_PARAMS rbfo;
+    result = _ir_camera->get_boson_radiometric_RBFO_high_gain_factory(&rbfo);
+    if (result == 0) {
+        base::LogInfo() << "Success process RBFO";
+        if (_mav_camera != nullptr) {
+            base::LogDebug() << "provide RBFO param from boson sdk R:" << rbfo.RBFO_R
+                             << " B: " << rbfo.RBFO_B << " F: " << rbfo.RBFO_F
+                             << " O: " << rbfo.RBFO_O;
+            _mav_camera->append_param({rbfo.RBFO_R, rbfo.RBFO_B, rbfo.RBFO_F, rbfo.RBFO_O});
+        }
+    } else {
+        base::LogError() << "Failed proces RBFO, result:" << result;
     }
     base::LogDebug() << "Load ir camera success";
     return true;
