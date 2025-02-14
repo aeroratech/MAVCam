@@ -14,6 +14,8 @@
 
 namespace mavcam {
 
+const std::string kTakePhotoInterval = "CAM_TAKE_INTERVAL";
+
 const std::string kCameraModeName = "CAM_MODE";
 const std::string kCameraDisplayModeName = "CAM_DIS_MODE";
 const std::string kPhotoResolution = "CAM_PHOTO_RES";
@@ -653,8 +655,18 @@ bool CameraLocalClient::init() {
 
     options.video_width = kVideoWidth;
     options.video_height = kVideoHeight;
-
     options.framerate = _framerate;
+
+    /************** take photo interval *************/
+    auto take_photo_interval = _camera_param.get_value(kTakePhotoInterval);
+    if (take_photo_interval.empty()) {
+        take_photo_interval = "1000";  // default take photo interval is 1000ms
+        _camera_param.set_value(kTakePhotoInterval, take_photo_interval);
+        options.photo_min_interval_in_millisecond = std::stoi(take_photo_interval);
+    } else {
+        options.photo_min_interval_in_millisecond = std::stoi(take_photo_interval);
+    }
+
     options.debug_calc_fps = false;
 
     const char *store_prefix = getenv("MAVCAM_DEFAULT_STORE_PREFIX");
