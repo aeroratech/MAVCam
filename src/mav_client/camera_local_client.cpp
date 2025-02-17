@@ -622,7 +622,7 @@ bool CameraLocalClient::init() {
                 _settings[kPhotoResolution] = "0";  // 0 for full resolution
             } else {
                 options.snapshot_width = kSnapshotHalfWidth;
-                options.snapshot_height = kSnapshotHeight;
+                options.snapshot_height = kSnapshotHalfHeight;
                 _settings[kPhotoResolution] = "1";  // 1 for 1/4 resolution
             }
         }
