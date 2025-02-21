@@ -17,6 +17,7 @@ namespace mavcam {
 const std::string kTakePhotoInterval = "CAM_TAKE_INTERVAL";
 
 const std::string kCameraModeName = "CAM_MODE";
+const std::string kCameraSensorModeName = "CAM_SENS_MODE";
 const std::string kCameraDisplayModeName = "CAM_DIS_MODE";
 const std::string kPhotoResolution = "CAM_PHOTO_RES";
 const std::string kPhotoQuality = "CAM_PHOTO_QC";
@@ -194,6 +195,8 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
         // reset settings value
         _settings[kCameraModeName] = "0";
         _camera_param.set_value(kCameraModeName, "0");
+        _settings[kCameraSensorModeName] = "2";  // default sensor mode is dual
+        _camera_param.set_value(kCameraSensorModeName, "2");
         _settings[kCameraDisplayModeName] = "0";
         _camera_param.set_value(kCameraDisplayModeName, "0");
         _settings[kPhotoQuality] = "0";
@@ -256,7 +259,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 12;
+        information.definition_file_version = 13;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -435,6 +438,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
                 _current_mode = mavsdk::CameraServer::Mode::Video;
             }
         }
+    } else if (setting.setting_id == kCameraSensorModeName) {
+        set_success = set_camera_sensor_mode(setting.option.option_id);
     } else if (setting.setting_id == kCameraDisplayModeName) {
         set_success = set_camera_display_mode(setting.option.option_id);
     } else if (setting.setting_id == kPhotoResolution) {
@@ -690,6 +695,7 @@ bool CameraLocalClient::init() {
         });
 
     // init all settings
+    _settings[kCameraSensorModeName] = init_camera_sensor_mode();
     _settings[kCameraDisplayModeName] = init_camera_display_mode();
     _settings[kWhitebalanceModeName] = init_whitebalance_mode();
     _settings[kExposureMode] = init_exposure_mode();
@@ -732,6 +738,50 @@ mavsdk::Camera::Setting CameraLocalClient::build_setting(std::string name, std::
     setting.setting_id = name;
     setting.option.option_id = value;
     return setting;
+}
+
+std::string CameraLocalClient::init_camera_sensor_mode() {
+    auto store_sensor_mode = _camera_param.get_value(kCameraSensorModeName);
+    if (store_sensor_mode.empty()) {
+        //init default sensor mode
+        mav_camera::Result result;
+        mav_camera::SensorMode sensor_mode;
+        std::tie(result, sensor_mode) = _mav_camera->get_sensor_mode();
+        std::string str_sensor_mode = "2";
+        if (result == mav_camera::Result::Success) {
+            switch (sensor_mode) {
+                case mav_camera::SensorMode::Normal:
+                    str_sensor_mode = "0";
+                    break;
+                case mav_camera::SensorMode::IR:
+                    str_sensor_mode = "1";
+                    break;
+                case mav_camera::SensorMode::Dual:
+                    str_sensor_mode = "2";
+                    break;
+            }
+        }
+        _camera_param.set_value(kCameraSensorModeName, str_sensor_mode);
+        return str_sensor_mode;
+    } else {
+        set_camera_sensor_mode(store_sensor_mode);
+        return store_sensor_mode;
+    }
+}
+
+bool CameraLocalClient::set_camera_sensor_mode(std::string sensor_mode) {
+    mav_camera::Result result = mav_camera::Result::Unknown;
+    mav_camera::SensorMode set_sensor_mode = mav_camera::SensorMode::Dual;
+    if (sensor_mode == "0") {
+        set_sensor_mode = mav_camera::SensorMode::Normal;
+    } else if (sensor_mode == "1") {
+        set_sensor_mode = mav_camera::SensorMode::IR;
+    } else if (sensor_mode == "2") {
+        set_sensor_mode = mav_camera::SensorMode::Dual;
+    }
+    result = _mav_camera->set_sensor_mode(set_sensor_mode);
+    base::LogDebug() << "set camera sensor mode to " << sensor_mode << " result " << int(result);
+    return result == mav_camera::Result::Success;
 }
 
 std::string CameraLocalClient::init_camera_display_mode() {
