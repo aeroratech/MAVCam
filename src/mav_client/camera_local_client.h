@@ -57,6 +57,16 @@ private:
      */
     mavsdk::Camera::Setting build_setting(std::string name, std::string value);
     /**
+     * @brief init camera sensor mode
+     * @details prefer to use store sensor mode
+     * @return current camera sensor mode string value
+     */
+    std::string init_camera_sensor_mode();
+    /**
+     * @brief set camera sensor mode
+     */
+    bool set_camera_sensor_mode(std::string sensor_mode);
+    /**
      * @brief init camera display mode
      * @details prefer to use store display mode
      * @return current camera display mode string value
