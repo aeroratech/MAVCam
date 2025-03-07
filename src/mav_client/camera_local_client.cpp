@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <future>
 #include <iomanip>  // for std::setprecision
 #include <regex>
 #include <thread>
@@ -178,9 +179,20 @@ mavsdk::CameraServer::Result CameraLocalClient::format_storage(int storage_id) {
     if (_mav_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
-    std::lock_guard<std::mutex> lock(_mutex);
-    auto result = _mav_camera->format_storage(storage_id);
-    return convert_camera_result_to_mav_server_result(result);
+    if (_is_formatting.exchange(true)) {
+        return mavsdk::CameraServer::Result::Busy;
+    }
+    std::async(std::launch::async, [this, storage_id]() {
+        {
+            if (_mav_camera != nullptr) {
+                auto result = _mav_camera->format_storage(storage_id);
+                base::LogInfo() << "format sdcard result is "
+                                << convert_camera_result_to_mav_server_result(result);
+            }
+        }
+        _is_formatting.store(false);  // format complete and relase
+    });
+    return mavsdk::CameraServer::Result::Success;
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
