@@ -2,6 +2,7 @@
 
 #include <cstdlib>  // for std::system
 #include <string>
+#include <thread>
 
 namespace mavcam {
 
@@ -20,7 +21,9 @@ void switch_led_mode(LedMode mode) {
         command = "leds-mode --combination 10";
     }
     if (!command.empty()) {
-        std::system(command.c_str());
+        std::thread([command]() {
+            [[maybe_unused]] int result = std::system(command.c_str());
+        }).detach();
     }
 }
 
