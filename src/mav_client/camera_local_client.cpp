@@ -184,11 +184,9 @@ mavsdk::CameraServer::Result CameraLocalClient::format_storage(int storage_id) {
     }
     std::async(std::launch::async, [this, storage_id]() {
         {
-            if (_mav_camera != nullptr) {
-                auto result = _mav_camera->format_storage(storage_id);
-                base::LogInfo() << "format sdcard result is "
-                                << convert_camera_result_to_mav_server_result(result);
-            }
+            auto result = _mav_camera->format_storage(storage_id);
+            base::LogInfo() << "format sdcard result is "
+                            << convert_camera_result_to_mav_server_result(result);
         }
         _is_formatting.store(false);  // format complete and relase
     });
@@ -201,36 +199,43 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     std::lock_guard<std::mutex> lock(_mutex);
-
-    auto result = _mav_camera->reset_settings();
-    if (result == mav_camera::Result::Success) {
-        // reset settings value
-        _settings[kCameraModeName] = "0";
-        _camera_param.set_value(kCameraModeName, "0");
-        _settings[kCameraSensorModeName] = "2";  // default sensor mode is dual
-        _camera_param.set_value(kCameraSensorModeName, "2");
-        _settings[kCameraDisplayModeName] = "0";
-        _camera_param.set_value(kCameraDisplayModeName, "0");
-        _settings[kPhotoQuality] = "0";
-        _camera_param.set_value(kPhotoQuality, "0");
-        _settings[kWhitebalanceModeName] = "0";
-        _camera_param.set_value(kWhitebalanceModeName, "0");
-        _settings[kExposureMode] = "0";
-        _camera_param.set_value(kExposureMode, "0");
-        _settings[kEVName] = "0";
-        _camera_param.set_value(kEVName, "0");
-        _settings[kISOName] = "125";
-        _camera_param.set_value(kISOName, "125");
-        _settings[kShutterSpeedName] = "0.01";
-        _camera_param.set_value(kShutterSpeedName, "0.01");
-        _settings[kVideoFormat] = "1";
-        _camera_param.set_value(kVideoFormat, "1");
-        _settings[kMeteringModeName] = "0";
-        _camera_param.set_value(kMeteringModeName, "0");
-        _settings[kSharpnessName] = "0";
-        _camera_param.set_value(kSharpnessName, "0");
-        _settings[kAELockName] = "0";  // ae lock don't store to param
+    if (_is_reseting.exchange(true)) {
+        return mavsdk::CameraServer::Result::Busy;
     }
+    std::async(std::launch::async, [this]() {
+        {
+            auto result = _mav_camera->reset_settings();
+            if (result == mav_camera::Result::Success) {
+                // reset settings value
+                _settings[kCameraModeName] = "0";
+                _camera_param.set_value(kCameraModeName, "0");
+                _settings[kCameraSensorModeName] = "2";  // default sensor mode is dual
+                _camera_param.set_value(kCameraSensorModeName, "2");
+                _settings[kCameraDisplayModeName] = "0";
+                _camera_param.set_value(kCameraDisplayModeName, "0");
+                _settings[kPhotoQuality] = "0";
+                _camera_param.set_value(kPhotoQuality, "0");
+                _settings[kWhitebalanceModeName] = "0";
+                _camera_param.set_value(kWhitebalanceModeName, "0");
+                _settings[kExposureMode] = "0";
+                _camera_param.set_value(kExposureMode, "0");
+                _settings[kEVName] = "0";
+                _camera_param.set_value(kEVName, "0");
+                _settings[kISOName] = "125";
+                _camera_param.set_value(kISOName, "125");
+                _settings[kShutterSpeedName] = "0.01";
+                _camera_param.set_value(kShutterSpeedName, "0.01");
+                _settings[kVideoFormat] = "1";
+                _camera_param.set_value(kVideoFormat, "1");
+                _settings[kMeteringModeName] = "0";
+                _camera_param.set_value(kMeteringModeName, "0");
+                _settings[kSharpnessName] = "0";
+                _camera_param.set_value(kSharpnessName, "0");
+                _settings[kAELockName] = "0";  // ae lock don't store to param
+            }
+        }
+        _is_reseting.store(false);  // reset complete and relase
+    });
     return mavsdk::CameraServer::Result::Success;
 }
 
