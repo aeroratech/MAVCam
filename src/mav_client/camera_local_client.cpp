@@ -158,10 +158,6 @@ mavsdk::CameraServer::Result CameraLocalClient::set_mode(mavsdk::CameraServer::M
         return mavsdk::CameraServer::Result::NoSystem;
     }
     std::lock_guard<std::mutex> lock(_mutex);
-    if (_current_mode == mode) {
-        // same mode do not change again
-        return mavsdk::CameraServer::Result::Success;
-    }
     mav_camera::Result result = mav_camera::Result::Unknown;
     std::string setting_mode = "0";
     if (mode == mavsdk::CameraServer::Mode::Photo) {
