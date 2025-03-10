@@ -205,6 +205,7 @@ private:
     std::chrono::steady_clock::time_point _start_video_time;
     mutable std::unordered_map<std::string, std::string> _settings;
     std::atomic<bool> _is_formatting{false};
+    std::atomic<bool> _is_reseting{false};
 private:
     std::mutex _mutex{};
     mutable std::mutex _storage_information_mutex;
