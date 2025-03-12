@@ -678,7 +678,7 @@ bool CameraLocalClient::init() {
     /************** take photo interval *************/
     auto take_photo_interval = _camera_param.get_value(kTakePhotoInterval);
     if (take_photo_interval.empty()) {
-        take_photo_interval = "1000";  // default take photo interval is 1000ms
+        take_photo_interval = "1800";  // default take photo interval is 1800ms
         _camera_param.set_value(kTakePhotoInterval, take_photo_interval);
         options.photo_min_interval_in_millisecond = std::stoi(take_photo_interval);
     } else {
