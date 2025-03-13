@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="13">
+    <definition version="14">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -163,6 +163,7 @@
                 <option name="160" value="160" />
                 <option name="200" value="200" />
                 <option name="250" value="250" />
+                <option name="320" value="320" />
                 <option name="400" value="400" />
                 <option name="500" value="500" />
                 <option name="640" value="640" />

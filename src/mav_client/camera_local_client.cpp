@@ -272,7 +272,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 13;
+        information.definition_file_version = 14;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
     } else {
         information.vendor_name = "Unknown";
