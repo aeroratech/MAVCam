@@ -628,11 +628,21 @@ bool CameraLocalClient::init() {
 
         auto store_resolution = _camera_param.get_value(kPhotoResolution);
         if (store_resolution.empty()) {  // init default param to local storage
-            // default is 1/4 resolution
-            options.snapshot_width = kSnapshotHalfWidth;
-            options.snapshot_height = kSnapshotHalfHeight;
-            _settings[kPhotoResolution] = "1";
-            _camera_param.set_value(kPhotoResolution, "1");
+            /**
+             * @brief for 64M camera will be 1/4
+             * @brief for 16M caemra will be full size
+             */
+            if (kSnapshotWidth > 8000) {
+                options.snapshot_width = kSnapshotHalfWidth;
+                options.snapshot_height = kSnapshotHalfHeight;
+                _settings[kPhotoResolution] = "1";
+                _camera_param.set_value(kPhotoResolution, "1");
+            } else {
+                options.snapshot_width = kSnapshotWidth;
+                options.snapshot_height = kSnapshotHeight;
+                _settings[kPhotoResolution] = "0";
+                _camera_param.set_value(kPhotoResolution, "0");
+            }
         } else {
             if (store_resolution == "0") {
                 options.snapshot_width = kSnapshotWidth;
