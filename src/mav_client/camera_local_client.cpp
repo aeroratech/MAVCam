@@ -76,7 +76,25 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
             return mavsdk::CameraServer::Result::Denied;
         }
     }
+
     std::lock_guard<std::mutex> lock(_mutex);
+    _mav_camera->prepare_take_photo();
+    /**
+     * @brief after switch ir camera to y16 mode, we need reget rbfo info
+     */
+    BOSON_RADIOMETRY_RBFO_PARAMS rbfo;
+    int ir_result = _ir_camera->get_boson_radiometric_RBFO_high_gain_factory(&rbfo);
+    if (ir_result == 0) {
+        if (_mav_camera != nullptr) {
+            base::LogDebug() << "provide RBFO param from boson sdk R:" << rbfo.RBFO_R
+                             << " B: " << rbfo.RBFO_B << " F: " << rbfo.RBFO_F
+                             << " O: " << rbfo.RBFO_O;
+            _mav_camera->append_param({rbfo.RBFO_R, rbfo.RBFO_B, rbfo.RBFO_F, rbfo.RBFO_O});
+        }
+    } else {
+        base::LogError() << "Failed proces RBFO, result:" << ir_result;
+    }
+
     auto result = _mav_camera->take_photo();
     auto convert_result = convert_camera_result_to_mav_server_result(result);
     if (convert_result == mavsdk::CameraServer::Result::Success) {
@@ -630,7 +648,7 @@ bool CameraLocalClient::init() {
         if (store_resolution.empty()) {  // init default param to local storage
             /**
              * @brief for 64M camera will be 1/4
-             * @brief for 16M caemra will be full size
+             * @brief for 12M caemra will be full size
              */
             if (kSnapshotWidth > 8000) {
                 options.snapshot_width = kSnapshotHalfWidth;
@@ -1255,19 +1273,6 @@ bool CameraLocalClient::init_ir_camera() {
         base::LogError() << "Failed process radiometric image function, result: " << result;
     }
 
-    BOSON_RADIOMETRY_RBFO_PARAMS rbfo;
-    result = _ir_camera->get_boson_radiometric_RBFO_high_gain_factory(&rbfo);
-    if (result == 0) {
-        base::LogInfo() << "Success process RBFO";
-        if (_mav_camera != nullptr) {
-            base::LogDebug() << "provide RBFO param from boson sdk R:" << rbfo.RBFO_R
-                             << " B: " << rbfo.RBFO_B << " F: " << rbfo.RBFO_F
-                             << " O: " << rbfo.RBFO_O;
-            _mav_camera->append_param({rbfo.RBFO_R, rbfo.RBFO_B, rbfo.RBFO_F, rbfo.RBFO_O});
-        }
-    } else {
-        base::LogError() << "Failed proces RBFO, result:" << result;
-    }
     base::LogDebug() << "Load ir camera success";
     return true;
 }
