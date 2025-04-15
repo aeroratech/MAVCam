@@ -1,7 +1,12 @@
+#include <mavsdk/log_callback.h>
+
+#include <chrono>
 #include <csignal>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <regex>
 
 #include "base/file_operation.h"
@@ -136,8 +141,7 @@ int main(int argc, const char *argv[]) {
         base::LogInfo() << "Init camera snapshot resolution is " << init_snapshot_resolution;
     }
 
-    if (!client.init(connection_url, use_local, rpc_port, default_ftp_path, work_as_autopilot,
-                     default_log_path)) {
+    if (!client.init(connection_url, use_local, rpc_port, default_ftp_path, work_as_autopilot)) {
         std::cout << "Cannot init mav client " << connection_url << std::endl;
         return 1;
     }
@@ -186,15 +190,21 @@ static void init_log() {
         base::LogError() << "Failed to open log file: " + full_path;
         return;
     }
+
+    static std::mutex log_mutex;
     base::log::subscribe([log_stream](base::log::Level level, const std::string &message,
                                       const std::string &file, int line) -> bool {
+        std::lock_guard<std::mutex> lock(log_mutex);
         std::stringstream ss;
-        time_t rawtime;
-        time(&rawtime);
+        struct timeval tv;
+        gettimeofday(&tv, nullptr);
+        time_t rawtime = tv.tv_sec;
         struct tm *timeinfo = localtime(&rawtime);
+
         char time_buffer[10]{};
         strftime(time_buffer, sizeof(time_buffer), "%I:%M:%S", timeinfo);
-        ss << "[" << time_buffer;
+
+        ss << "[" << time_buffer << "." << std::setfill('0') << std::setw(3) << (tv.tv_usec / 1000);
 
         switch (level) {
             case base::log::Level::Debug:
@@ -207,6 +217,45 @@ static void init_log() {
                 ss << "|Warn ] ";
                 break;
             case base::log::Level::Err:
+                ss << "|Error] ";
+                break;
+        }
+        ss << " " << message << "\n";
+        if (log_stream->good()) {
+            log_stream->write(ss.str().c_str(), ss.str().size());
+            log_stream->flush();
+        }
+        return false;
+    });
+
+    mavsdk::log::subscribe([log_stream](mavsdk::log::Level level, const std::string &message,
+                                        const std::string &file, int line) -> bool {
+        // ignore debug log in mavsdk
+        if (level == mavsdk::log::Level::Debug) {
+            return false;
+        }
+        std::lock_guard<std::mutex> lock(log_mutex);
+        std::stringstream ss;
+        struct timeval tv;
+        gettimeofday(&tv, nullptr);
+        time_t rawtime = tv.tv_sec;
+        struct tm *timeinfo = localtime(&rawtime);
+        char time_buffer[10]{};
+        strftime(time_buffer, sizeof(time_buffer), "%I:%M:%S", timeinfo);
+        ss << "[MAVSDK|" << time_buffer << "." << std::setfill('0') << std::setw(3)
+           << (tv.tv_usec / 1000);
+
+        switch (level) {
+            case mavsdk::log::Level::Debug:
+                ss << "|Debug] ";
+                break;
+            case mavsdk::log::Level::Info:
+                ss << "|Info ] ";
+                break;
+            case mavsdk::log::Level::Warn:
+                ss << "|Warn ] ";
+                break;
+            case mavsdk::log::Level::Err:
                 ss << "|Error] ";
                 break;
         }
