@@ -208,16 +208,16 @@ static void init_log() {
 
         switch (level) {
             case base::log::Level::Debug:
-                ss << "|Debug] ";
+                ss << "|Debug]";
                 break;
             case base::log::Level::Info:
-                ss << "|Info ] ";
+                ss << "|Info ]";
                 break;
             case base::log::Level::Warn:
-                ss << "|Warn ] ";
+                ss << "|Warn ]";
                 break;
             case base::log::Level::Err:
-                ss << "|Error] ";
+                ss << "|Error]";
                 break;
         }
         ss << " " << message << "\n";
@@ -242,21 +242,20 @@ static void init_log() {
         struct tm *timeinfo = localtime(&rawtime);
         char time_buffer[10]{};
         strftime(time_buffer, sizeof(time_buffer), "%I:%M:%S", timeinfo);
-        ss << "[MAVSDK|" << time_buffer << "." << std::setfill('0') << std::setw(3)
-           << (tv.tv_usec / 1000);
+        ss << "[" << time_buffer << "." << std::setfill('0') << std::setw(3) << (tv.tv_usec / 1000);
 
         switch (level) {
             case mavsdk::log::Level::Debug:
-                ss << "|Debug] ";
+                ss << "|Debug|MAVSDK]";
                 break;
             case mavsdk::log::Level::Info:
-                ss << "|Info ] ";
+                ss << "|Info|MAVSDK]";
                 break;
             case mavsdk::log::Level::Warn:
-                ss << "|Warn ] ";
+                ss << "|Warn|MAVSDK]";
                 break;
             case mavsdk::log::Level::Err:
-                ss << "|Error] ";
+                ss << "|Error|MAVSDK]";
                 break;
         }
         ss << " " << message << "\n";
