@@ -204,29 +204,33 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
             if (result == mav_camera::Result::Success) {
                 // reset settings value
                 _settings[kCameraModeName] = "0";
-                _camera_param.set_value(kCameraModeName, "0");
+                _camera_param.set_value(kCameraModeName, _settings[kCameraModeName]);
                 _settings[kCameraSensorModeName] = "2";  // default sensor mode is dual
-                _camera_param.set_value(kCameraSensorModeName, "2");
+                _camera_param.set_value(kCameraSensorModeName, _settings[kCameraSensorModeName]);
                 _settings[kCameraDisplayModeName] = "0";
-                _camera_param.set_value(kCameraDisplayModeName, "0");
+                _camera_param.set_value(kCameraDisplayModeName, _settings[kCameraDisplayModeName]);
+                _settings[kPhotoResolution] = "1";      // default photo resolution is 16M mode
+                _camera_param.set_value(kPhotoResolution, _settings[kPhotoResolution]);
                 _settings[kPhotoQuality] = "0";
-                _camera_param.set_value(kPhotoQuality, "0");
+                _camera_param.set_value(kPhotoQuality, _settings[kPhotoQuality]);
                 _settings[kWhitebalanceModeName] = "0";
-                _camera_param.set_value(kWhitebalanceModeName, "0");
+                _camera_param.set_value(kWhitebalanceModeName, _settings[kWhitebalanceModeName]);
                 _settings[kExposureMode] = "0";
-                _camera_param.set_value(kExposureMode, "0");
+                _camera_param.set_value(kExposureMode, _settings[kExposureMode]);
                 _settings[kEVName] = "0";
-                _camera_param.set_value(kEVName, "0");
+                _camera_param.set_value(kEVName, _settings[kEVName]);
                 _settings[kISOName] = "125";
-                _camera_param.set_value(kISOName, "125");
+                _camera_param.set_value(kISOName, _settings[kISOName]);
                 _settings[kShutterSpeedName] = "0.01";
-                _camera_param.set_value(kShutterSpeedName, "0.01");
+                _camera_param.set_value(kShutterSpeedName, _settings[kShutterSpeedName]);
+                _settings[kVideoResolution] = "1";      // default video resolution is 4k 30fps
+                _camera_param.set_value(kVideoResolution, _settings[kVideoResolution]);
                 _settings[kVideoFormat] = "1";
-                _camera_param.set_value(kVideoFormat, "1");
+                _camera_param.set_value(kVideoFormat, _settings[kVideoFormat]);
                 _settings[kMeteringModeName] = "0";
-                _camera_param.set_value(kMeteringModeName, "0");
+                _camera_param.set_value(kMeteringModeName, _settings[kMeteringModeName]);
                 _settings[kSharpnessName] = "0";
-                _camera_param.set_value(kSharpnessName, "0");
+                _camera_param.set_value(kSharpnessName, _settings[kSharpnessName]);
                 _settings[kAELockName] = "0";  // ae lock don't store to param
             }
         }
