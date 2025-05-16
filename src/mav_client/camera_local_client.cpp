@@ -209,7 +209,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
                 _camera_param.set_value(kCameraSensorModeName, _settings[kCameraSensorModeName]);
                 _settings[kCameraDisplayModeName] = "0";
                 _camera_param.set_value(kCameraDisplayModeName, _settings[kCameraDisplayModeName]);
-                _settings[kPhotoResolution] = "1";      // default photo resolution is 16M mode
+                _settings[kPhotoResolution] = "1";  // default photo resolution is 16M mode
                 _camera_param.set_value(kPhotoResolution, _settings[kPhotoResolution]);
                 _settings[kPhotoQuality] = "0";
                 _camera_param.set_value(kPhotoQuality, _settings[kPhotoQuality]);
@@ -221,9 +221,9 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
                 _camera_param.set_value(kEVName, _settings[kEVName]);
                 _settings[kISOName] = "125";
                 _camera_param.set_value(kISOName, _settings[kISOName]);
-                _settings[kShutterSpeedName] = "0.01";
+                _settings[kShutterSpeedName] = "1/100";
                 _camera_param.set_value(kShutterSpeedName, _settings[kShutterSpeedName]);
-                _settings[kVideoResolution] = "1";      // default video resolution is 4k 30fps
+                _settings[kVideoResolution] = "1";  // default video resolution is 4k 30fps
                 _camera_param.set_value(kVideoResolution, _settings[kVideoResolution]);
                 _settings[kVideoFormat] = "1";
                 _camera_param.set_value(kVideoFormat, _settings[kVideoFormat]);
@@ -276,7 +276,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 14;
+        information.definition_file_version = 15;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -316,7 +316,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_video_stream_info(
     normal_video_stream.settings.frame_rate_hz = 30.0;
     normal_video_stream.settings.horizontal_resolution_pix = 1280;
     normal_video_stream.settings.vertical_resolution_pix = 720;
-    normal_video_stream.settings.bit_rate_b_s = 1 * 1024 * 1024;
+    normal_video_stream.settings.bit_rate_b_s = 2.5 * 1024 * 1024;
     normal_video_stream.settings.rotation_deg = 0;
     normal_video_stream.settings.uri = "rtsp://192.168.251.1/live";
     normal_video_stream.settings.horizontal_fov_deg = 0;
@@ -881,7 +881,7 @@ std::string CameraLocalClient::init_whitebalance_mode() {
                              << convert_camera_result_to_mav_server_result(result);
             whitebalance = "0";
         } else {
-            if (value == mav_camera::kAutoWhitebalanceValue) {
+            if (value == mav_camera::kDefaultWhitebalance) {
                 whitebalance = "0";
             } else if (value == 5500) {
                 whitebalance = "1";
@@ -909,7 +909,7 @@ std::string CameraLocalClient::init_whitebalance_mode() {
 bool CameraLocalClient::set_whitebalance_mode(std::string mode) {
     mav_camera::Result result;
     if (mode == "0") {  // Auto
-        result = _mav_camera->set_white_balance(mav_camera::kAutoWhitebalanceValue);
+        result = _mav_camera->set_white_balance(mav_camera::kDefaultWhitebalance);
     } else if (mode == "1") {  // Daylight
         result = _mav_camera->set_white_balance(5500);
     } else if (mode == "2") {  // Cloudy
@@ -1008,30 +1008,11 @@ bool CameraLocalClient::set_iso(std::string iso) {
 std::string CameraLocalClient::init_shutter_speed() {
     auto store_shutter_speed = _camera_param.get_value(kShutterSpeedName);
     if (store_shutter_speed.empty()) {
-        std::string shutter_speed = "";
-        auto [result, value] = _mav_camera->get_shutter_speed();
+        auto [result, shutter_speed] = _mav_camera->get_shutter_speed();
         if (result != mav_camera::Result::Success) {
             base::LogDebug() << "Cannot get shutterspeed"
                              << convert_camera_result_to_mav_server_result(result);
-            shutter_speed = "0.01";  // default value
-        }
-        std::size_t pos = value.find('/');
-        if (pos != std::string::npos) {
-            // Split the string at '/'
-            std::string num_str = value.substr(0, pos);
-            std::string den_str = value.substr(pos + 1);
-
-            // Convert to float
-            float numerator = std::stof(num_str);
-            float denominator = std::stof(den_str);
-
-            // Perform the division
-            auto convert_result = std::to_string(numerator / denominator);
-            base::LogDebug() << "current shutter speed is : " << convert_result;
-            shutter_speed = convert_result;
-        } else {
-            // If there is no '/', assume it's a whole number
-            shutter_speed = value;
+            shutter_speed = "1/100";  // default value
         }
         _camera_param.set_value(kShutterSpeedName, shutter_speed);
         return shutter_speed;
@@ -1040,6 +1021,7 @@ std::string CameraLocalClient::init_shutter_speed() {
         if (_settings[kExposureMode] == "1") {
             set_shutter_speed(store_shutter_speed);
         }
+        // for compatible old firmware need convert old style to new style shutter speed
         return store_shutter_speed;
     }
 }
