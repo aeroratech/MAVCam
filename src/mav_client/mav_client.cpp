@@ -254,15 +254,6 @@ void MavClient::subscribe_param_operation(mavsdk::ParamServer &param_server) {
         setting.option.option_id = std::to_string(int_param.value);
         _camera_client->set_setting(setting);
     });
-    param_server.subscribe_changed_param_custom(
-        [this](mavsdk::ParamServer::CustomParam custom_param) {
-            base::LogDebug() << "param server change custom " << custom_param.name << " to "
-                             << custom_param.value;
-            mavsdk::Camera::Setting setting;
-            setting.setting_id = custom_param.name;
-            setting.option.option_id = custom_param.value;
-            _camera_client->set_setting(setting);
-        });
 
     fill_param(param_server);
 }
@@ -275,11 +266,9 @@ void MavClient::fill_param(mavsdk::ParamServer &param_server) {
         base::LogDebug() << "fill param " << setting.setting_id
                          << " to value: " << setting.option.option_id;
         // TODO hard code
-        if (setting.setting_id == "CAM_EV") {
+        if (setting.setting_id == "CAM_SHUTTERSPD" || setting.setting_id == "CAM_EV") {
             param_server.provide_param_float(setting.setting_id,
                                              std::stof(setting.option.option_id));
-        } else if (setting.setting_id == "CAM_SHUTTERSPD") {
-            param_server.provide_param_custom(setting.setting_id, setting.option.option_id);
         } else {
             auto result = param_server.provide_param_int(setting.setting_id,
                                                          std::stoi(setting.option.option_id));
