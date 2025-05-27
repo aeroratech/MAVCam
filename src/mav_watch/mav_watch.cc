@@ -5,13 +5,6 @@
 
 #include "led_control/led_control.h"
 
-void notify(const std::string &message) {
-    // Use system notification (Linux 'notify-send')
-    std::string command = "notify-send 'mav_client Alert' '" + message + "'";
-    std::system(command.c_str());
-    std::cout << message << std::endl;
-}
-
 bool isProcessRunning(const std::string &processName) {
     std::string command = "pgrep -x " + processName + " > /dev/null 2>&1";
     int ret = std::system(command.c_str());
@@ -32,9 +25,8 @@ int main() {
 
     while (true) {
         if (!isProcessRunning(processName)) {
-            notify("mav_client process has died!");
             mavcam::switch_led_mode(mavcam::LedMode::Dead);
-            break;
+            continue;
         }
         std::this_thread::sleep_for(std::chrono::seconds(checkInterval));
     }
