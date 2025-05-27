@@ -25,6 +25,10 @@ namespace mavcam {
 
 bool MavClient::init(std::string &connection_url, bool use_local, int32_t rpc_port,
                      std::string &ftp_root_path, bool work_as_autopilot) {
+    /**
+     * first init set led status to normal
+     */
+    switch_led_mode(LedMode::Normal);
     // TODO need check connection url first
     _connection_url = connection_url;
     _rpc_port = rpc_port;
@@ -73,7 +77,6 @@ bool MavClient::start_runloop() {
     base::LogInfo() << "Launch ftp server with root path " << _ftp_root_path;
 
     _running = true;
-    switch_led_mode(LedMode::Normal);
     while (_running.load(std::memory_order_consume)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
