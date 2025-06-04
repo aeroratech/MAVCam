@@ -247,7 +247,7 @@ void MavClient::subscribe_param_operation(mavsdk::ParamServer &param_server) {
         mavsdk::Camera::Setting setting;
         setting.setting_id = float_param.name;
         std::ostringstream ss;
-        ss << std::fixed << std::setprecision(10) << float_param.value;
+        ss << std::fixed << std::setprecision(9) << float_param.value;
         setting.option.option_id = ss.str();
         _camera_client->set_setting(setting);
     });
