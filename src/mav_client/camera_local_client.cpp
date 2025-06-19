@@ -36,9 +36,9 @@ const std::string kAELockName = "CAM_AE_LOCK";
 const std::string kIrCamPalette = "IRCAM_PALETTE";
 const std::string kIrCamFFC = "IRCAM_FFC";
 
-static const int32_t kPreviewWidth = 1920;
-static const int32_t kPreviewPhotoHeight = 1440;
-static const int32_t kPreviewVideoHeight = 1080;
+static const int32_t kPreviewWidth = 1280;
+static const int32_t kPreviewPhotoHeight = 960;
+static const int32_t kPreviewVideoHeight = 720;
 
 static int32_t kSnapshotWidth = 1920;
 static int32_t kSnapshotHeight = 1440;
@@ -682,7 +682,7 @@ bool CameraLocalClient::init() {
         options.preview_height = kPreviewPhotoHeight;
     } else {
         options.preview_width = kPreviewWidth;
-        options.preview_height = kPreviewPhotoHeight;
+        options.preview_height = kPreviewVideoHeight;
     }
 
     options.video_width = kVideoWidth;
