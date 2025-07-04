@@ -209,7 +209,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
                 _camera_param.set_value(kCameraSensorModeName, _settings[kCameraSensorModeName]);
                 _settings[kCameraDisplayModeName] = "0";
                 _camera_param.set_value(kCameraDisplayModeName, _settings[kCameraDisplayModeName]);
-                _settings[kPhotoResolution] = "1";      // default photo resolution is 16M mode
+                _settings[kPhotoResolution] = "1";  // default photo resolution is 16M mode
                 _camera_param.set_value(kPhotoResolution, _settings[kPhotoResolution]);
                 _settings[kPhotoQuality] = "0";
                 _camera_param.set_value(kPhotoQuality, _settings[kPhotoQuality]);
@@ -223,7 +223,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
                 _camera_param.set_value(kISOName, _settings[kISOName]);
                 _settings[kShutterSpeedName] = "0.01";
                 _camera_param.set_value(kShutterSpeedName, _settings[kShutterSpeedName]);
-                _settings[kVideoResolution] = "1";      // default video resolution is 4k 30fps
+                _settings[kVideoResolution] = "1";  // default video resolution is 4k 30fps
                 _camera_param.set_value(kVideoResolution, _settings[kVideoResolution]);
                 _settings[kVideoFormat] = "1";
                 _camera_param.set_value(kVideoFormat, _settings[kVideoFormat]);
@@ -682,7 +682,7 @@ bool CameraLocalClient::init() {
         options.preview_height = kPreviewPhotoHeight;
     } else {
         options.preview_width = kPreviewWidth;
-        options.preview_height = kPreviewPhotoHeight;
+        options.preview_height = kPreviewVideoHeight;
     }
 
     options.video_width = kVideoWidth;
