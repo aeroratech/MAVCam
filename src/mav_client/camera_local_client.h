@@ -57,6 +57,10 @@ private:
      */
     mavsdk::Camera::Setting build_setting(std::string name, std::string value);
     /**
+     * @brief set camera mode
+     */
+    bool set_camera_mode(std::string mode);
+    /**
      * @brief init camera sensor mode
      * @details prefer to use store sensor mode
      * @return current camera sensor mode string value
@@ -76,6 +80,18 @@ private:
      * @brief set camera display mode
      */
     bool set_camera_display_mode(std::string mode);
+    /**
+     * @brief set photo resoltion
+     */
+    bool set_photo_resolution(std::string value);
+    /**
+     * @brief set video resoltion
+     */
+    bool set_video_resolution(std::string value);
+    /**
+     * @brief set photo quality
+     */
+    bool set_photo_quality(std::string value);
     /**
      * @brief init camera whitebalance mode
      * @details prefer to use store whitebalance mode
@@ -133,16 +149,6 @@ private:
      */
     std::string init_video_format();
     /**
-     * @brief init video resoltuion
-     * @details prefer to use store video resolution
-     * @return current video resolution
-     */
-    std::string init_video_resolution();
-    /**
-     * @brief set video resoltuion
-     */
-    bool set_video_resolution(std::string value);
-    /**
      * @brief init camera metering mode
      * @details prefer to use store metering mode
      * @return current metering mode
@@ -198,8 +204,6 @@ private:
     mavsdk::CameraServer::Result convert_camera_result_to_mav_server_result(
         mav_camera::Result input_result);
 private:
-    mutable mavsdk::CameraServer::Mode _current_mode{mavsdk::CameraServer::Mode::Unknown};
-    int32_t _framerate;
     std::atomic<int> _image_count;
     std::atomic<bool> _is_recording_video;
     std::chrono::steady_clock::time_point _start_video_time;

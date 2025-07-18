@@ -40,9 +40,6 @@ static const int32_t kPreviewWidth = 1920;
 static const int32_t kPreviewPhotoHeight = 1440;
 static const int32_t kPreviewVideoHeight = 1080;
 
-static const int32_t kVideoWidth = 3840;
-static const int32_t kVideoHeight = 2160;
-
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 
 #define QCOM_CAMERA_LIBERAY "libqcom_camera.so"
@@ -51,8 +48,6 @@ static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 typedef mav_camera::MavCamera *(*create_qcom_camera_fun)();
 
 CameraLocalClient::CameraLocalClient() {
-    _current_mode = mavsdk::CameraServer::Mode::Unknown;
-    _framerate = 30;
     _image_count = 0;
     _is_recording_video = false;
 }
@@ -434,59 +429,30 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         base::LogError() << "Unsupport setting " << setting.setting_id;
         return mavsdk::CameraServer::Result::WrongArgument;
     }
+
     bool set_success = false;
     if (setting.setting_id == kCameraModeName) {
-        mav_camera::Mode set_mode = mav_camera::Mode::Unknown;
-        if (setting.option.option_id == "0") {
-            set_mode = mav_camera::Mode::Photo;
-        } else {
-            set_mode = mav_camera::Mode::Video;
-        }
-        auto result = _mav_camera->set_mode(set_mode);
-        set_success = result == mav_camera::Result::Success;
-        if (set_success) {
-            if (set_mode == mav_camera::Mode::Photo) {
-                _current_mode = mavsdk::CameraServer::Mode::Photo;
-            } else {
-                _current_mode = mavsdk::CameraServer::Mode::Video;
-            }
-        }
+        set_success = set_camera_mode(setting.option.option_id);
     } else if (setting.setting_id == kCameraSensorModeName) {
         set_success = set_camera_sensor_mode(setting.option.option_id);
     } else if (setting.setting_id == kCameraDisplayModeName) {
         set_success = set_camera_display_mode(setting.option.option_id);
     } else if (setting.setting_id == kPhotoResolution) {
-        mav_camera::PhotoResolutionMode mode;
-        if (setting.option.option_id == "0") {
-            mode = mav_camera::PhotoResolutionMode::Full;
-        } else if (setting.option.option_id == "1") {
-            mode = mav_camera::PhotoResolutionMode::Quarter;
-        }
-        auto result = _mav_camera->set_photo_resolution_mode(mode);
-        set_success = (result == mav_camera::Result::Success);
+        set_success = set_photo_resolution(setting.option.option_id);
+    } else if (setting.setting_id == kVideoResolution) {
+        set_success = set_video_resolution(setting.option.option_id);
     } else if (setting.setting_id == kPhotoQuality) {
-        mav_camera::JpegQuality jpeg_quality;
-        if (setting.option.option_id == "0") {
-            jpeg_quality = mav_camera::JpegQuality::SuperFine;
-        } else if (setting.option.option_id == "1") {
-            jpeg_quality = mav_camera::JpegQuality::Fine;
-        } else if (setting.option.option_id == "2") {
-            jpeg_quality = mav_camera::JpegQuality::Normal;
-        }
-        auto result = _mav_camera->set_jpeg_quality(jpeg_quality);
-        set_success = result == mav_camera::Result::Success;
-    } else if (setting.setting_id == kWhitebalanceModeName) {  // whitebalance mode
+        set_success = set_photo_quality(setting.option.option_id);
+    } else if (setting.setting_id == kWhitebalanceModeName) {
         set_success = set_whitebalance_mode(setting.option.option_id);
     } else if (setting.setting_id == kExposureMode) {
         set_success = set_exposure_mode(setting.option.option_id);
-    } else if (setting.setting_id == kEVName) {  // exposure value
+    } else if (setting.setting_id == kEVName) {
         set_success = set_exposure_value(setting.option.option_id);
     } else if (setting.setting_id == kISOName) {
         set_success = set_iso(setting.option.option_id);
     } else if (setting.setting_id == kShutterSpeedName) {
         set_success = set_shutter_speed(setting.option.option_id);
-    } else if (setting.setting_id == kVideoResolution) {
-        set_success = set_video_resolution(setting.option.option_id);
     } else if (setting.setting_id == kMeteringModeName) {
         set_success = set_metering_mode(setting.option.option_id);
     } else if (setting.setting_id == kSharpnessName) {
@@ -564,15 +530,14 @@ bool CameraLocalClient::init() {
     options.preview_weston_output = true;
 
     ///< init priority is env > store > default
-
     /************** Camera Mode *************/
     auto camera_mode = mav_camera::Mode::Photo;
-    const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
-    if (init_camera_mode != NULL) {
-        if (strncmp(init_camera_mode, "0", 1) == 0) {
+    const char *env_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
+    if (env_camera_mode != NULL) {
+        if (strncmp(env_camera_mode, "0", 1) == 0) {
             camera_mode = mav_camera::Mode::Photo;
             base::LogInfo() << "Manually init camera to photo mode";
-        } else if (strncmp(init_camera_mode, "1", 1) == 0) {
+        } else if (strncmp(env_camera_mode, "1", 1) == 0) {
             camera_mode = mav_camera::Mode::Video;
             base::LogInfo() << "Manually init camera to video mode";
         }
@@ -601,7 +566,6 @@ bool CameraLocalClient::init() {
     }
 
     /************** Photo Resolution *************/
-    // priority env > storage > default value
     char *env_photo_resoltuion_mode = getenv("MAVCAM_INIT_PHOTO_RESOLUTION");
     if (env_photo_resoltuion_mode != NULL) {
         std::string mode(env_photo_resoltuion_mode);
@@ -635,6 +599,41 @@ bool CameraLocalClient::init() {
         }
     }
 
+    /************** Video Resolution *************/
+    auto store_video_resolution = _camera_param.get_value(kVideoResolution);
+    // use default param and store to storage
+    if (store_video_resolution.empty()) {
+        auto [_, video_resolution_mode] = _mav_camera->get_video_resolution_mode();
+        options.video_resolution_mode = video_resolution_mode;
+        switch (video_resolution_mode) {
+            case mav_camera::VideoResolutionMode::UHD60FPS:
+                _settings[kVideoResolution] = "0";
+                break;
+            case mav_camera::VideoResolutionMode::UHD30FPS:
+                _settings[kVideoResolution] = "1";
+                break;
+            case mav_camera::VideoResolutionMode::FHD60FPS:
+                _settings[kVideoResolution] = "2";
+                break;
+            case mav_camera::VideoResolutionMode::FHD30FPS:
+                _settings[kVideoResolution] = "3";
+                break;
+        }
+        // store value
+        _camera_param.set_value(kVideoResolution, _settings[kVideoResolution]);
+    } else {
+        _settings[kVideoResolution] = store_video_resolution;
+        if (store_video_resolution == "0") {
+            options.video_resolution_mode = mav_camera::VideoResolutionMode::UHD60FPS;
+        } else if (store_video_resolution == "1") {
+            options.video_resolution_mode = mav_camera::VideoResolutionMode::UHD30FPS;
+        } else if (store_video_resolution == "2") {
+            options.video_resolution_mode = mav_camera::VideoResolutionMode::FHD60FPS;
+        } else if (store_video_resolution == "3") {
+            options.video_resolution_mode = mav_camera::VideoResolutionMode::FHD30FPS;
+        }
+    }
+
     /************** Jpeg Quality *************/
     auto store_jpeg_quality = _camera_param.get_value(kPhotoQuality);
     if (store_jpeg_quality.empty()) {
@@ -659,10 +658,6 @@ bool CameraLocalClient::init() {
         options.preview_width = kPreviewWidth;
         options.preview_height = kPreviewVideoHeight;
     }
-
-    options.video_width = kVideoWidth;
-    options.video_height = kVideoHeight;
-    options.framerate = _framerate;
 
     /************** take photo interval *************/
     auto take_photo_interval = _camera_param.get_value(kTakePhotoInterval);
@@ -705,7 +700,6 @@ bool CameraLocalClient::init() {
     _settings[kISOName] = init_iso();
     _settings[kShutterSpeedName] = init_shutter_speed();
     _settings[kVideoFormat] = init_video_format();
-    _settings[kVideoResolution] = init_video_resolution();
     _settings[kMeteringModeName] = init_metering_mode();
     _settings[kSharpnessName] = init_sharpness();
     // always disable ae lock on init
@@ -740,6 +734,17 @@ mavsdk::Camera::Setting CameraLocalClient::build_setting(std::string name, std::
     setting.setting_id = name;
     setting.option.option_id = value;
     return setting;
+}
+
+bool CameraLocalClient::set_camera_mode(std::string mode) {
+    mav_camera::Mode set_mode = mav_camera::Mode::Unknown;
+    if (mode == "0") {
+        set_mode = mav_camera::Mode::Photo;
+    } else {
+        set_mode = mav_camera::Mode::Video;
+    }
+    auto result = _mav_camera->set_mode(set_mode);
+    return result == mav_camera::Result::Success;
 }
 
 std::string CameraLocalClient::init_camera_sensor_mode() {
@@ -834,6 +839,46 @@ bool CameraLocalClient::set_camera_display_mode(std::string mode) {
             mav_camera::PreivewStreamOutputType::MixPIP);
     }
     base::LogDebug() << "set camera display mode to " << mode << " result " << int(result);
+    return result == mav_camera::Result::Success;
+}
+
+bool CameraLocalClient::set_photo_resolution(std::string value) {
+    mav_camera::PhotoResolutionMode mode;
+    if (value == "0") {
+        mode = mav_camera::PhotoResolutionMode::Full;
+    } else if (value == "1") {
+        mode = mav_camera::PhotoResolutionMode::Quarter;
+    }
+    auto result = _mav_camera->set_photo_resolution_mode(mode);
+    return result == mav_camera::Result::Success;
+}
+
+bool CameraLocalClient::set_video_resolution(std::string value) {
+    mav_camera::VideoResolutionMode mode;
+    if (value == "0") {
+        mode = mav_camera::VideoResolutionMode::UHD60FPS;
+    } else if (value == "1") {
+        mode = mav_camera::VideoResolutionMode::UHD30FPS;
+    } else if (value == "2") {
+        mode = mav_camera::VideoResolutionMode::FHD60FPS;
+    } else if (value == "3") {
+        mode = mav_camera::VideoResolutionMode::FHD30FPS;
+    }
+    base::LogDebug() << "Set video resolution to " << mode;
+    auto result = _mav_camera->set_video_resolution_mode(mode);
+    return result == mav_camera::Result::Success;
+}
+
+bool CameraLocalClient::set_photo_quality(std::string value) {
+    mav_camera::JpegQuality jpeg_quality;
+    if (value == "0") {
+        jpeg_quality = mav_camera::JpegQuality::SuperFine;
+    } else if (value == "1") {
+        jpeg_quality = mav_camera::JpegQuality::Fine;
+    } else if (value == "2") {
+        jpeg_quality = mav_camera::JpegQuality::Normal;
+    }
+    auto result = _mav_camera->set_jpeg_quality(jpeg_quality);
     return result == mav_camera::Result::Success;
 }
 
@@ -1033,79 +1078,6 @@ std::string CameraLocalClient::init_video_format() {
     } else {
         return store_video_format;
     }
-}
-
-std::string CameraLocalClient::init_video_resolution() {
-    auto store_video_resolution = _camera_param.get_value(kVideoResolution);
-    if (store_video_resolution.empty()) {
-        std::string video_resolution = "";
-        auto [result, width, height] = _mav_camera->get_video_resolution();
-        if (result != mav_camera::Result::Success) {
-            base::LogError() << "Cannot get video resolution"
-                             << convert_camera_result_to_mav_server_result(result);
-            video_resolution = "0";
-        }
-        auto [result2, framerate] = _mav_camera->get_framerate();
-        if (result2 != mav_camera::Result::Success) {
-            base::LogError() << "Cannot get framerate"
-                             << convert_camera_result_to_mav_server_result(result);
-            video_resolution = "0";
-        }
-        base::LogDebug() << "Current video resolution is " << width << "x" << height << "@"
-                         << framerate;
-        if (width == 3840 && height == 2160 && framerate == 60) {
-            video_resolution = "0";
-        } else if (width == 3840 && height == 2160 && framerate == 30) {
-            video_resolution = "1";
-        } else if (width == 1920 && height == 1080 && framerate == 60) {
-            video_resolution = "2";
-        } else if (width == 1920 && height == 1080 && framerate == 30) {
-            video_resolution = "3";
-        } else {
-            base::LogError() << "Not found match resolution : " << width << "x" << height << "@"
-                             << framerate;
-            video_resolution = "0";
-        }
-        _camera_param.set_value(kVideoResolution, video_resolution);
-        return video_resolution;
-    } else {
-        set_video_resolution(store_video_resolution);
-        return store_video_resolution;
-    }
-}
-
-bool CameraLocalClient::set_video_resolution(std::string value) {
-    int set_width = 0;
-    int set_height = 0;
-    int set_framerate = 0;
-    if (value == "0") {
-        set_width = 3840;
-        set_height = 2160;
-        set_framerate = 60;
-    } else if (value == "1") {
-        set_width = 3840;
-        set_height = 2160;
-        set_framerate = 30;
-    } else if (value == "2") {
-        set_width = 1920;
-        set_height = 1080;
-        set_framerate = 60;
-    } else if (value == "3") {
-        set_width = 1920;
-        set_height = 1080;
-        set_framerate = 30;
-    }
-    base::LogDebug() << "Set video resolution to " << set_width << "x" << set_height << "@"
-                     << set_framerate;
-    auto result = _mav_camera->set_video_resolution(set_width, set_height);
-    if (result != mav_camera::Result::Success) {
-        base::LogError() << "Failed to set video resolution : " << set_width << "x" << set_height;
-    }
-    result = _mav_camera->set_framerate(set_framerate);
-    if (result != mav_camera::Result::Success) {
-        base::LogError() << "Failed to set video framerate : " << set_framerate;
-    }
-    return result == mav_camera::Result::Success;
 }
 
 std::string CameraLocalClient::init_metering_mode() {
