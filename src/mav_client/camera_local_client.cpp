@@ -40,10 +40,6 @@ static const int32_t kPreviewWidth = 1920;
 static const int32_t kPreviewPhotoHeight = 1440;
 static const int32_t kPreviewVideoHeight = 1080;
 
-static int32_t kSnapshotWidth = 1920;
-static int32_t kSnapshotHeight = 1440;
-static int32_t kSnapshotHalfWidth = 1920;
-static int32_t kSnapshotHalfHeight = 1440;
 static const int32_t kVideoWidth = 3840;
 static const int32_t kVideoHeight = 2160;
 
@@ -460,14 +456,14 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     } else if (setting.setting_id == kCameraDisplayModeName) {
         set_success = set_camera_display_mode(setting.option.option_id);
     } else if (setting.setting_id == kPhotoResolution) {
+        mav_camera::SnapshotResolutionMode mode;
         if (setting.option.option_id == "0") {
-            auto result = _mav_camera->set_snapshot_resolution(kSnapshotWidth, kSnapshotHeight);
-            set_success = result == mav_camera::Result::Success;
+            mode = mav_camera::SnapshotResolutionMode::Full;
         } else if (setting.option.option_id == "1") {
-            auto result =
-                _mav_camera->set_snapshot_resolution(kSnapshotHalfWidth, kSnapshotHalfHeight);
-            set_success = result == mav_camera::Result::Success;
+            mode = mav_camera::SnapshotResolutionMode::Quarter;
         }
+        auto result = _mav_camera->set_snapshot_resolution_mode(mode);
+        set_success = (result == mav_camera::Result::Success);
     } else if (setting.setting_id == kPhotoQuality) {
         mav_camera::JpegQuality jpeg_quality;
         if (setting.option.option_id == "0") {
@@ -605,57 +601,36 @@ bool CameraLocalClient::init() {
     }
 
     /************** Photo Resolution *************/
-    const char *init_snapshot_resoltuion = getenv("MAVCAM_INIT_SNAPSHOT_RES");
-    if (init_snapshot_resoltuion != NULL) {
-        std::regex resolutionRegex(R"(^(\d+)x(\d+)$)");
-        std::smatch match;
-        const auto str_snapshot_resoltuion = std::string(init_snapshot_resoltuion);
-        if (std::regex_match(str_snapshot_resoltuion, match, resolutionRegex)) {
-            // Extract width and height from the match results
-            kSnapshotWidth = std::stoi(match[1].str());
-            kSnapshotHeight = std::stoi(match[2].str());
-
-            kSnapshotHalfWidth = kSnapshotWidth / 2;
-            kSnapshotHalfHeight = kSnapshotHeight / 2;
-
-            // for manually set snapshot resolution, not use half snapshot resolution
-            options.snapshot_width = kSnapshotWidth;
-            options.snapshot_height = kSnapshotHeight;
+    // priority env > storage > default value
+    char *env_snapshot_resoltuion_mode = getenv("MAVCAM_INIT_SNAPSHOT_MODE");
+    if (env_snapshot_resoltuion_mode != NULL) {
+        std::string mode(env_snapshot_resoltuion_mode);
+        if (mode == "0") {
+            options.snapshot_resolution_mode = mav_camera::SnapshotResolutionMode::Full;
             _settings[kPhotoResolution] = "0";
+        } else if (mode == "1") {
+            options.snapshot_resolution_mode = mav_camera::SnapshotResolutionMode::Quarter;
+            _settings[kPhotoResolution] = "1";
         }
     } else {
-        int32_t snapshot_width = 0;
-        int32_t snpashot_height = 0;
-        std::tie(result, kSnapshotWidth, kSnapshotHeight) = _mav_camera->get_snapshot_resolution();
-        kSnapshotHalfWidth = kSnapshotWidth / 2;
-        kSnapshotHalfHeight = kSnapshotHeight / 2;
-
         auto store_resolution = _camera_param.get_value(kPhotoResolution);
-        if (store_resolution.empty()) {  // init default param to local storage
-            /**
-             * @brief for 64M camera will be 1/4
-             * @brief for 16M caemra will be full size
-             */
-            if (kSnapshotWidth > 8000) {
-                options.snapshot_width = kSnapshotHalfWidth;
-                options.snapshot_height = kSnapshotHalfHeight;
-                _settings[kPhotoResolution] = "1";
-                _camera_param.set_value(kPhotoResolution, "1");
-            } else {
-                options.snapshot_width = kSnapshotWidth;
-                options.snapshot_height = kSnapshotHeight;
+        // use default param and store to storage
+        if (store_resolution.empty()) {
+            auto [_, snapshot_resolution_mode] = _mav_camera->get_snapshot_resolution_mode();
+            options.snapshot_resolution_mode = snapshot_resolution_mode;
+            if (snapshot_resolution_mode == mav_camera::SnapshotResolutionMode::Full) {
                 _settings[kPhotoResolution] = "0";
-                _camera_param.set_value(kPhotoResolution, "0");
-            }
-        } else {
-            if (store_resolution == "0") {
-                options.snapshot_width = kSnapshotWidth;
-                options.snapshot_height = kSnapshotHeight;
-                _settings[kPhotoResolution] = "0";  // 0 for full resolution
             } else {
-                options.snapshot_width = kSnapshotHalfWidth;
-                options.snapshot_height = kSnapshotHalfHeight;
-                _settings[kPhotoResolution] = "1";  // 1 for 1/4 resolution
+                _settings[kPhotoResolution] = "1";
+            }
+            // store value
+            _camera_param.set_value(kPhotoResolution, _settings[kPhotoResolution]);
+        } else {
+            _settings[kPhotoResolution] = store_resolution;
+            if (store_resolution == "0") {
+                options.snapshot_resolution_mode = mav_camera::SnapshotResolutionMode::Full;
+            } else {
+                options.snapshot_resolution_mode = mav_camera::SnapshotResolutionMode::Quarter;
             }
         }
     }
