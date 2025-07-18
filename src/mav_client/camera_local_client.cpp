@@ -36,10 +36,6 @@ const std::string kAELockName = "CAM_AE_LOCK";
 const std::string kIrCamPalette = "IRCAM_PALETTE";
 const std::string kIrCamFFC = "IRCAM_FFC";
 
-static const int32_t kPreviewWidth = 1920;
-static const int32_t kPreviewPhotoHeight = 1440;
-static const int32_t kPreviewVideoHeight = 1080;
-
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 
 #define QCOM_CAMERA_LIBERAY "libqcom_camera.so"
@@ -651,14 +647,6 @@ bool CameraLocalClient::init() {
         }
     }
 
-    if (options.init_mode == mav_camera::Mode::Photo) {
-        options.preview_width = kPreviewWidth;
-        options.preview_height = kPreviewPhotoHeight;
-    } else {
-        options.preview_width = kPreviewWidth;
-        options.preview_height = kPreviewVideoHeight;
-    }
-
     /************** take photo interval *************/
     auto take_photo_interval = _camera_param.get_value(kTakePhotoInterval);
     if (take_photo_interval.empty()) {
@@ -669,6 +657,8 @@ bool CameraLocalClient::init() {
         options.photo_min_interval_in_millisecond = std::stoi(take_photo_interval);
     }
 
+    // other param
+    options.preview_resolution_mode = mav_camera::PreviewResolutionMode::FHD;
     options.debug_calc_fps = false;
 
     const char *store_prefix = getenv("MAVCAM_DEFAULT_STORE_PREFIX");
