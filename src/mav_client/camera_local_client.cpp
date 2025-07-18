@@ -456,13 +456,13 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     } else if (setting.setting_id == kCameraDisplayModeName) {
         set_success = set_camera_display_mode(setting.option.option_id);
     } else if (setting.setting_id == kPhotoResolution) {
-        mav_camera::SnapshotResolutionMode mode;
+        mav_camera::PhotoResolutionMode mode;
         if (setting.option.option_id == "0") {
-            mode = mav_camera::SnapshotResolutionMode::Full;
+            mode = mav_camera::PhotoResolutionMode::Full;
         } else if (setting.option.option_id == "1") {
-            mode = mav_camera::SnapshotResolutionMode::Quarter;
+            mode = mav_camera::PhotoResolutionMode::Quarter;
         }
-        auto result = _mav_camera->set_snapshot_resolution_mode(mode);
+        auto result = _mav_camera->set_photo_resolution_mode(mode);
         set_success = (result == mav_camera::Result::Success);
     } else if (setting.setting_id == kPhotoQuality) {
         mav_camera::JpegQuality jpeg_quality;
@@ -602,23 +602,23 @@ bool CameraLocalClient::init() {
 
     /************** Photo Resolution *************/
     // priority env > storage > default value
-    char *env_snapshot_resoltuion_mode = getenv("MAVCAM_INIT_SNAPSHOT_MODE");
-    if (env_snapshot_resoltuion_mode != NULL) {
-        std::string mode(env_snapshot_resoltuion_mode);
+    char *env_photo_resoltuion_mode = getenv("MAVCAM_INIT_PHOTO_RESOLUTION");
+    if (env_photo_resoltuion_mode != NULL) {
+        std::string mode(env_photo_resoltuion_mode);
         if (mode == "0") {
-            options.snapshot_resolution_mode = mav_camera::SnapshotResolutionMode::Full;
+            options.photo_resolution_mode = mav_camera::PhotoResolutionMode::Full;
             _settings[kPhotoResolution] = "0";
         } else if (mode == "1") {
-            options.snapshot_resolution_mode = mav_camera::SnapshotResolutionMode::Quarter;
+            options.photo_resolution_mode = mav_camera::PhotoResolutionMode::Quarter;
             _settings[kPhotoResolution] = "1";
         }
     } else {
         auto store_resolution = _camera_param.get_value(kPhotoResolution);
         // use default param and store to storage
         if (store_resolution.empty()) {
-            auto [_, snapshot_resolution_mode] = _mav_camera->get_snapshot_resolution_mode();
-            options.snapshot_resolution_mode = snapshot_resolution_mode;
-            if (snapshot_resolution_mode == mav_camera::SnapshotResolutionMode::Full) {
+            auto [_, photo_resolution_mode] = _mav_camera->get_photo_resolution_mode();
+            options.photo_resolution_mode = photo_resolution_mode;
+            if (photo_resolution_mode == mav_camera::PhotoResolutionMode::Full) {
                 _settings[kPhotoResolution] = "0";
             } else {
                 _settings[kPhotoResolution] = "1";
@@ -628,9 +628,9 @@ bool CameraLocalClient::init() {
         } else {
             _settings[kPhotoResolution] = store_resolution;
             if (store_resolution == "0") {
-                options.snapshot_resolution_mode = mav_camera::SnapshotResolutionMode::Full;
+                options.photo_resolution_mode = mav_camera::PhotoResolutionMode::Full;
             } else {
-                options.snapshot_resolution_mode = mav_camera::SnapshotResolutionMode::Quarter;
+                options.photo_resolution_mode = mav_camera::PhotoResolutionMode::Quarter;
             }
         }
     }
