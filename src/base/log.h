@@ -7,8 +7,11 @@
 #if defined(ANDROID)
 #include <android/log.h>
 #else
+#include <sys/time.h>
+
 #include <ctime>
 #include <iostream>
+#include <string>
 #endif
 
 #if !defined(WINDOWS)
@@ -91,14 +94,22 @@ public:
                 break;
         }
 
-        // Time output taken from:
-        // https://stackoverflow.com/questions/16357999#answer-16358264
-        time_t rawtime;
-        time(&rawtime);
-        struct tm *timeinfo = localtime(&rawtime);
-        char time_buffer[10]{};  // We need 8 characters + \0
-        strftime(time_buffer, sizeof(time_buffer), "%I:%M:%S", timeinfo);
-        std::cout << "[" << time_buffer;
+        auto current_time_with_ms = []() -> std::string {
+            char time_buffer[13];  // "HH:MM:SS.mmm" + null terminator
+
+            struct timeval tv;
+            gettimeofday(&tv, NULL);  // Get current time: seconds + microseconds
+
+            struct tm *local_time = localtime(&tv.tv_sec);  // Convert to local time
+
+            int milliseconds = tv.tv_usec / 1000;
+
+            // Format into HH:MM:SS.mmm
+            snprintf(time_buffer, sizeof(time_buffer), "%02d:%02d:%02d.%03d", local_time->tm_hour,
+                     local_time->tm_min, local_time->tm_sec, milliseconds);
+            return std::string(time_buffer);
+        };
+        std::cout << "[" << current_time_with_ms();
 
         switch (_log_level) {
             case log::Level::Debug:
