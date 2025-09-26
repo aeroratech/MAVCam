@@ -10,6 +10,7 @@
 #include "camera_param/camera_param.h"
 #include "ir_camera.h"
 #include "mav_camera.h"
+#include "render_bridge.h"
 
 namespace mavcam {
 
@@ -47,6 +48,10 @@ public:  // settings
         mavsdk::Camera::Setting setting) const override;
 public:
     bool init();
+    /**
+     * @brief capture callback implement for display
+     */
+    void capture_callback(mav_camera::MAVFrame *rgb_frame, ir_camera::IRFrame *ir_frame);
 private:
     /**
      * @brief deinit instance
@@ -195,6 +200,14 @@ private:
      */
     bool set_ir_FFC(std::string ignore);
     /**
+     * @brief init render bridge
+     */
+    bool init_render_bridge();
+    /**
+     * @brief free render bridge
+     */
+    void free_render_bridge();
+    /**
      * @brief check sdcard status for led control
      */
     void check_sdcard_status();
@@ -221,6 +234,9 @@ private:
 private:
     void *_ir_camera_handle{NULL};
     ir_camera::IRCamera *_ir_camera{nullptr};
+private:
+    void *_render_bridge_handle{NULL};
+    RenderBridge *_render_bridge{nullptr};
 private:
     CameraParam _camera_param;
     bool _sdcard_valid{true};
