@@ -6,7 +6,7 @@
 #include <thread>
 #include <vector>
 
-#include "boson-sdk-interface.h"
+#include "ir_camera.h"
 #include "mav_camera.h"
 #include "plugins/camera/camera.h"
 
@@ -341,7 +341,7 @@ private:
     mav_camera::MavCamera *_mav_camera{nullptr};
 private:
     void *_ir_camera_handle{NULL};
-    struct boson_extension_api *_ir_camera{nullptr};
+    ir_camera::IRCamera *_ir_camera{nullptr};
 };
 
 }  // namespace mavcam
