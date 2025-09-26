@@ -6,9 +6,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "boson-sdk-interface.h"
 #include "camera_client.h"
 #include "camera_param/camera_param.h"
+#include "ir_camera.h"
 #include "mav_camera.h"
 
 namespace mavcam {
@@ -210,6 +210,7 @@ private:
     mutable std::unordered_map<std::string, std::string> _settings;
     std::atomic<bool> _is_formatting{false};
     std::atomic<bool> _is_reseting{false};
+    PreivewStreamType _preview_type;
 private:
     std::mutex _mutex{};
     mutable std::mutex _storage_information_mutex;
@@ -219,7 +220,7 @@ private:
     mav_camera::MavCamera *_mav_camera{nullptr};
 private:
     void *_ir_camera_handle{NULL};
-    struct boson_extension_api *_ir_camera{nullptr};
+    ir_camera::IRCamera *_ir_camera{nullptr};
 private:
     CameraParam _camera_param;
     bool _sdcard_valid{true};
