@@ -40,8 +40,14 @@ static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 
 #define QCOM_CAMERA_LIBERAY "libqcom_camera.so"
 #define IR_CAMERA_LIBRARY "libir_camera.so"
+#define RENDER_BRIDGE_LIBRARY "librender_bridge.so"
 
-typedef mav_camera::MavCamera *(*create_qcom_camera_fun)();
+void RGBCaptureCallback(mav_camera::MAVFrame *frame, void *context) {
+    if (context != NULL) {
+        CameraLocalClient *client = (CameraLocalClient *)context;
+        client->capture_callback(frame, NULL);
+    }
+}
 
 CameraLocalClient::CameraLocalClient() {
     _image_count = 0;
@@ -484,6 +490,10 @@ std::pair<mavsdk::CameraServer::Result, mavsdk::Camera::Setting> CameraLocalClie
 }
 
 bool CameraLocalClient::init() {
+    if (!init_render_bridge()) {
+        return false;
+    }
+
     if (_mav_camera != nullptr) {
         return true;
     }
@@ -496,6 +506,7 @@ bool CameraLocalClient::init() {
         return false;
     }
 
+    typedef mav_camera::MavCamera *(*create_qcom_camera_fun)();
     create_qcom_camera_fun create_camera_fun =
         (create_qcom_camera_fun)dlsym(_plugin_handle, "create_qcom_camera");
     if (create_camera_fun == NULL) {
@@ -666,6 +677,8 @@ bool CameraLocalClient::init() {
         base::LogInfo() << "Set store prefix to " << options.store_prefix;
     }
 
+    // subscribe capture callback
+    _mav_camera->set_capture_callback(RGBCaptureCallback, this);
     result = _mav_camera->open(options);
     if (result == mav_camera::Result::Success) {
         base::LogDebug() << "open qcom camera success";
@@ -704,6 +717,17 @@ bool CameraLocalClient::init() {
     return true;
 }
 
+void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
+                                         ir_camera::IRFrame *ir_frame) {
+    if (_render_bridge == nullptr) {
+        return;
+    }
+    if (_preview_type == PreivewStreamType::RGBStreamOnly) {
+        _render_bridge->draw_nv12_frame((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
+                                        rgb_frame->height, rgb_frame->stride, rgb_frame->slice);
+    }
+}
+
 void CameraLocalClient::deinit() {
     if (_mav_camera != nullptr) {
         _mav_camera->close();
@@ -714,6 +738,8 @@ void CameraLocalClient::deinit() {
         dlclose(_plugin_handle);
         _plugin_handle = NULL;
     }
+    free_ir_camera();
+    free_render_bridge();
 }
 
 mavsdk::Camera::Setting CameraLocalClient::build_setting(std::string name, std::string value) {
@@ -782,7 +808,7 @@ std::string CameraLocalClient::init_camera_display_mode() {
     auto store_display_mode = _camera_param.get_value(kCameraDisplayModeName);
     if (store_display_mode.empty()) {
         // default display mode is PIP
-        _preview_type = mavcam::PreivewStreamType::PIP;
+        _preview_type = mavcam::PreivewStreamType::RGBStreamOnly;
         std::string string_type = std::to_string(static_cast<int>(_preview_type));
         _camera_param.set_value(kCameraDisplayModeName, string_type);
         return string_type;
@@ -1103,7 +1129,6 @@ bool CameraLocalClient::init_ir_camera() {
         return true;
     }
 
-    typedef ir_camera::IRCamera *(*create_ir_camera_fun)();
     _ir_camera_handle = dlopen(IR_CAMERA_LIBRARY, RTLD_NOW);
     if (_ir_camera_handle == NULL) {
         char const *err_str = dlerror();
@@ -1114,10 +1139,11 @@ bool CameraLocalClient::init_ir_camera() {
         base::LogDebug() << "Success load " << IR_CAMERA_LIBRARY;
     }
 
+    typedef ir_camera::IRCamera *(*create_ir_camera_fun)();
     create_ir_camera_fun create_camera_fun =
         (create_ir_camera_fun)dlsym(_plugin_handle, "create_ir_camera");
     if (create_camera_fun == NULL) {
-        base::LogError() << "Cannot find symbol create_ir_camera_fun";
+        base::LogError() << "Cannot find symbol create_ir_camera";
         dlclose(_ir_camera_handle);
         _ir_camera_handle = NULL;
         return false;
@@ -1194,6 +1220,52 @@ bool CameraLocalClient::set_ir_FFC(std::string /*ignore*/) {
         return true;
     }
     return false;
+}
+
+bool CameraLocalClient::init_render_bridge() {
+    if (_render_bridge != nullptr) {
+        return true;
+    }
+    _render_bridge_handle = dlopen(RENDER_BRIDGE_LIBRARY, RTLD_NOW);
+    if (_render_bridge_handle == NULL) {
+        char const *err_str = dlerror();
+        base::LogError() << "Load module " << RENDER_BRIDGE_LIBRARY << " failed "
+                         << (err_str != NULL ? err_str : "unknown");
+        return false;
+    } else {
+        base::LogDebug() << "Success load " << RENDER_BRIDGE_LIBRARY;
+    }
+
+    typedef RenderBridge *(*create_render_bridge_fun)(RenderType);
+    create_render_bridge_fun create_render_bridge =
+        (create_render_bridge_fun)dlsym(_render_bridge_handle, "create_render_bridge");
+    if (create_render_bridge == NULL) {
+        base::LogError() << "Cannot find symbol create_render_bridge";
+        dlclose(_render_bridge_handle);
+        _render_bridge_handle = NULL;
+        return false;
+    }
+
+    _render_bridge = create_render_bridge(RenderType::Weston);
+    if (!_render_bridge->open()) {
+        base::LogError() << "open render bridge failed";
+        dlclose(_render_bridge_handle);
+        _render_bridge_handle = NULL;
+        return false;
+    }
+    return true;
+}
+
+void CameraLocalClient::free_render_bridge() {
+    if (_render_bridge != nullptr) {
+        _render_bridge->close();
+        delete _render_bridge;
+        _render_bridge = nullptr;
+    }
+    if (_render_bridge_handle != NULL) {
+        dlclose(_render_bridge_handle);
+        _render_bridge_handle = NULL;
+    }
 }
 
 void CameraLocalClient::check_sdcard_status() {
