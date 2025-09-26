@@ -49,6 +49,13 @@ void RGBCaptureCallback(mav_camera::MAVFrame *frame, void *context) {
     }
 }
 
+void IRCaptureCallback(ir_camera::IRFrame *frame, void *context) {
+    if (context != NULL) {
+        CameraLocalClient *client = (CameraLocalClient *)context;
+        client->capture_callback(NULL, frame);
+    }
+}
+
 CameraLocalClient::CameraLocalClient() {
     _image_count = 0;
     _is_recording_video = false;
@@ -722,9 +729,12 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
     if (_render_bridge == nullptr) {
         return;
     }
-    if (_preview_type == PreivewStreamType::RGBStreamOnly) {
+    if (_preview_type == PreivewStreamType::RGBStreamOnly && rgb_frame != nullptr) {
         _render_bridge->draw_nv12_frame((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
                                         rgb_frame->height, rgb_frame->stride, rgb_frame->slice);
+    } else if (_preview_type == PreivewStreamType::InfraredStreamOnly && ir_frame != nullptr) {
+        _render_bridge->draw_nv12_frame(ir_frame->vaddr, ir_frame->width, ir_frame->height,
+                                        ir_frame->width, ir_frame->height);
     }
 }
 
@@ -808,7 +818,7 @@ std::string CameraLocalClient::init_camera_display_mode() {
     auto store_display_mode = _camera_param.get_value(kCameraDisplayModeName);
     if (store_display_mode.empty()) {
         // default display mode is PIP
-        _preview_type = mavcam::PreivewStreamType::RGBStreamOnly;
+        _preview_type = mavcam::PreivewStreamType::InfraredStreamOnly;
         std::string string_type = std::to_string(static_cast<int>(_preview_type));
         _camera_param.set_value(kCameraDisplayModeName, string_type);
         return string_type;
@@ -1141,7 +1151,7 @@ bool CameraLocalClient::init_ir_camera() {
 
     typedef ir_camera::IRCamera *(*create_ir_camera_fun)();
     create_ir_camera_fun create_camera_fun =
-        (create_ir_camera_fun)dlsym(_plugin_handle, "create_ir_camera");
+        (create_ir_camera_fun)dlsym(_ir_camera_handle, "create_ir_camera");
     if (create_camera_fun == NULL) {
         base::LogError() << "Cannot find symbol create_ir_camera";
         dlclose(_ir_camera_handle);
@@ -1170,6 +1180,8 @@ bool CameraLocalClient::init_ir_camera() {
         _ir_camera_handle = NULL;
         return false;
     }
+
+    _ir_camera->start_capture(IRCaptureCallback, this);
 
     base::LogDebug() << "Load ir camera success";
     return true;
