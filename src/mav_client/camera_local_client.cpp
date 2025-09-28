@@ -838,8 +838,8 @@ bool CameraLocalClient::set_camera_sensor_mode(std::string sensor_mode) {
 std::string CameraLocalClient::init_camera_display_mode() {
     auto store_display_mode = _camera_param.get_value(kCameraDisplayModeName);
     if (store_display_mode.empty()) {
-        // default display mode is PIP
-        _preview_type = mavcam::PreivewStreamType::InfraredStreamOnly;
+        // default display mode is RGB
+        _preview_type = mavcam::PreivewStreamType::RGBStreamOnly;
         std::string string_type = std::to_string(static_cast<int>(_preview_type));
         _camera_param.set_value(kCameraDisplayModeName, string_type);
         return string_type;
@@ -850,10 +850,9 @@ std::string CameraLocalClient::init_camera_display_mode() {
 }
 
 bool CameraLocalClient::set_camera_display_mode(std::string mode) {
-    mav_camera::Result result = mav_camera::Result::Unknown;
     _preview_type = static_cast<PreivewStreamType>(std::stoi(mode));
-    base::LogDebug() << "set camera display mode to " << mode << " result " << int(result);
-    return result == mav_camera::Result::Success;
+    base::LogDebug() << "change camera display mode to " << mode;
+    return true;
 }
 
 bool CameraLocalClient::set_photo_resolution(std::string value) {
