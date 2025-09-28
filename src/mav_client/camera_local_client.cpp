@@ -276,7 +276,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 14;
+        information.definition_file_version = 15;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -737,10 +737,9 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
                                         ir_frame->width, ir_frame->height);
     } else if (_preview_type == PreivewStreamType::SideBySide) {
         if (rgb_frame != NULL) {
-            RenderRect crop_rect = {450, 200, 960, 768};
             _render_bridge->draw_rgb_frame_in_left((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
                                                    rgb_frame->height, rgb_frame->stride,
-                                                   rgb_frame->slice, crop_rect);
+                                                   rgb_frame->slice);
         }
         if (ir_frame != NULL) {
             _render_bridge->draw_ir_frame_in_right(ir_frame->vaddr, ir_frame->width,
@@ -754,6 +753,26 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
         }
         if (ir_frame != NULL) {
             _render_bridge->draw_ir_frame_in_PIP(ir_frame->vaddr, ir_frame->width, ir_frame->height,
+                                                 ir_frame->width, ir_frame->height);
+        }
+    } else if (_preview_type == PreivewStreamType::Superimpose) {
+        if (rgb_frame != NULL) {
+            _render_bridge->draw_nv12_frame((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
+                                            rgb_frame->height, rgb_frame->stride, rgb_frame->slice);
+        }
+        if (ir_frame != NULL) {
+            _render_bridge->draw_ir_frame_in_superimpose(ir_frame->vaddr, ir_frame->width,
+                                                         ir_frame->height, ir_frame->width,
+                                                         ir_frame->height);
+        }
+    } else if (_preview_type == PreivewStreamType::Mix) {
+        if (rgb_frame != NULL) {
+            _render_bridge->draw_rgb_frame_in_mix((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
+                                                  rgb_frame->height, rgb_frame->stride,
+                                                  rgb_frame->slice);
+        }
+        if (ir_frame != NULL) {
+            _render_bridge->draw_ir_frame_in_mix(ir_frame->vaddr, ir_frame->width, ir_frame->height,
                                                  ir_frame->width, ir_frame->height);
         }
     }
@@ -851,7 +870,6 @@ std::string CameraLocalClient::init_camera_display_mode() {
 
 bool CameraLocalClient::set_camera_display_mode(std::string mode) {
     _preview_type = static_cast<PreivewStreamType>(std::stoi(mode));
-    base::LogDebug() << "change camera display mode to " << mode;
     return true;
 }
 
