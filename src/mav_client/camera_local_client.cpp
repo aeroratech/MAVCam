@@ -43,6 +43,10 @@ static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 #define RENDER_BRIDGE_LIBRARY "librender_bridge.so"
 #define STORAGE_MANAGER_LIBRARY "libstorage_manager.so"
 
+// TODO (thomas) : read from config file
+static std::string kCameraBrand = "ACSL";
+static std::string kCameraModule = "SAMO";
+
 void RGBCaptureCallback(mav_camera::MAVFrame *frame, void *context) {
     if (context != NULL) {
         CameraLocalClient *client = (CameraLocalClient *)context;
@@ -77,16 +81,49 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
             return mavsdk::CameraServer::Result::Denied;
         }
     }
+    std::string storage_path = _storage_manager->get_storage_path();
+    if (storage_path.empty()) {
+        return mavsdk::CameraServer::Result::Denied;
+    }
+
     std::lock_guard<std::mutex> lock(_action_mutex);
-    auto result = _mav_camera->take_photo();
-    auto convert_result = convert_camera_result_to_mav_server_result(result);
-    if (convert_result == mavsdk::CameraServer::Result::Success) {
+
+    int file_index = _storage_manager->get_file_index();
+    auto generate_new_storage_path = [&]() -> std::string {
+        std::ostringstream oss;
+        oss << storage_path << "/" << kCameraBrand << std::setw(4) << std::setfill('0')
+            << file_index << "."
+            << "jpg";
+        return oss.str();
+    };
+
+    auto return_result = mavsdk::CameraServer::Result::Success;
+    bool success = false;
+    if (_sensor_mode == SensorMode::IR) {
+        std::string file_path = generate_new_storage_path();
+        success = _ir_camera->take_photo(file_path);
+        if (!success) {
+            return_result = mavsdk::CameraServer::Result::Error;
+        }
+    } else if (_sensor_mode == SensorMode::Normal || _sensor_mode == SensorMode::Dual) {
+        std::string file_path = generate_new_storage_path();
+        auto result = _mav_camera->take_photo(file_path);
+        return_result = convert_camera_result_to_mav_server_result(result);
+        if (return_result != mavsdk::CameraServer::Result::Success) {
+            base::LogInfo() << "Take rgb photo failed with result " << return_result;
+        }
+        success = (return_result == mavsdk::CameraServer::Result::Success);
+        if (_sensor_mode == SensorMode::Dual) {
+            file_index++;
+            std::string file_path = generate_new_storage_path();
+            success = _ir_camera->take_photo(file_path);
+        }
+    }
+    if (success) {
         _image_count++;
         switch_led_mode(LedMode::TakePhoto);
-    } else {
-        base::LogInfo() << "Take photo failed with result " << convert_result;
     }
-    return convert_result;
+    return return_result;
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::start_video() {
@@ -100,18 +137,52 @@ mavsdk::CameraServer::Result CameraLocalClient::start_video() {
             return mavsdk::CameraServer::Result::Denied;
         }
     }
-    std::lock_guard<std::mutex> lock(_action_mutex);
+    std::string storage_path = _storage_manager->get_storage_path();
+    if (storage_path.empty()) {
+        return mavsdk::CameraServer::Result::Denied;
+    }
 
-    auto result = _mav_camera->start_video();
-    auto mav_result = convert_camera_result_to_mav_server_result(result);
-    if (mav_result == mavsdk::CameraServer::Result::Success) {
+    int file_index = _storage_manager->get_file_index();
+    std::lock_guard<std::mutex> lock(_action_mutex);
+    auto generate_new_storage_path = [&]() -> std::string {
+        std::ostringstream oss;
+        oss << storage_path << "/" << kCameraBrand << std::setw(4) << std::setfill('0')
+            << file_index << "."
+            << "mp4";
+        return oss.str();
+    };
+
+    auto return_result = mavsdk::CameraServer::Result::Success;
+    bool success = false;
+    if (_sensor_mode == SensorMode::IR) {
+        std::string file_path = generate_new_storage_path();
+        success = _ir_camera->start_video_recording(file_path);
+        if (!success) {
+            return_result = mavsdk::CameraServer::Result::Error;
+        }
+    } else if (_sensor_mode == SensorMode::Normal || _sensor_mode == SensorMode::Dual) {
+        std::string file_path = generate_new_storage_path();
+        auto result = _mav_camera->start_video(file_path);
+        return_result = convert_camera_result_to_mav_server_result(result);
+        if (return_result != mavsdk::CameraServer::Result::Success) {
+            base::LogInfo() << "start video recording failed with result " << return_result;
+        }
+        success = (return_result == mavsdk::CameraServer::Result::Success);
+        if (_sensor_mode == SensorMode::Dual) {
+            file_index++;
+            std::string file_path = generate_new_storage_path();
+            success = _ir_camera->start_video_recording(file_path);
+            if (!success) {
+                return_result = mavsdk::CameraServer::Result::Error;
+            }
+        }
+    }
+    if (success) {
         _is_recording_video = true;
         _start_video_time = std::chrono::steady_clock::now();
         switch_led_mode(LedMode::Recording);
-    } else {
-        base::LogInfo() << "start video recording failed with result " << mav_result;
     }
-    return mav_result;
+    return return_result;
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
@@ -124,19 +195,34 @@ mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
         base::LogWarn() << "call stop video without video is recording";
         return mavsdk::CameraServer::Result::Success;
     }
-    auto result = _mav_camera->stop_video();
-    auto mav_result = convert_camera_result_to_mav_server_result(result);
-    if (mav_result == mavsdk::CameraServer::Result::Success) {
+
+    bool success = false;
+    auto mav_result = mavsdk::CameraServer::Result::Success;
+    if (_sensor_mode == SensorMode::IR) {
+        success = _ir_camera->stop_video_recording();
+        if (!success) {
+            mav_result = mavsdk::CameraServer::Result::Error;
+        }
+    } else if (_sensor_mode == SensorMode::Normal || _sensor_mode == SensorMode::Dual) {
+        auto result = _mav_camera->stop_video();
+        mav_result = convert_camera_result_to_mav_server_result(result);
+        if (mav_result != mavsdk::CameraServer::Result::Success) {
+            base::LogInfo() << "Stop video recording failed with result " << mav_result;
+        }
+        success = (mav_result == mavsdk::CameraServer::Result::Success);
+
+        if (_sensor_mode == SensorMode::Dual) {
+            success = _ir_camera->stop_video_recording();
+        }
+    }
+    if (success) {
         _is_recording_video = false;
         auto current_time = std::chrono::steady_clock::now();
         auto recording_time_s =
             std::chrono::duration_cast<std::chrono::seconds>(current_time - _start_video_time)
                 .count();
-        base::LogInfo() << "Stop video recording after " << recording_time_s << " s";
-
+        base::LogInfo() << "Stop rgb video recording after " << recording_time_s << " s";
         switch_led_mode(LedMode::Normal);
-    } else {
-        base::LogInfo() << "Stop video recording failed with result " << mav_result;
     }
     return mav_result;
 }
@@ -181,9 +267,8 @@ mavsdk::CameraServer::Result CameraLocalClient::format_storage(int storage_id) {
     }
     std::async(std::launch::async, [this, storage_id]() {
         {
-            auto result = _mav_camera->format_storage(storage_id);
-            base::LogInfo() << "format sdcard result is "
-                            << convert_camera_result_to_mav_server_result(result);
+            auto result = _storage_manager->format_storage();
+            base::LogInfo() << "format sdcard result is " << result;
         }
         _is_formatting.store(false);  // format complete and relase
     });
@@ -657,6 +742,8 @@ bool CameraLocalClient::init_mav_camera() {
         }
     }
 
+    options.brand = kCameraBrand;
+    options.module = kCameraModule;
     options.init_mode = camera_mode;
     if (options.init_mode == mav_camera::Mode::Photo) {
         _settings[kCameraModeName] = "0";
@@ -764,14 +851,6 @@ bool CameraLocalClient::init_mav_camera() {
     options.preview_resolution_mode = mav_camera::PreviewResolutionMode::FHD;
     options.debug_calc_fps = false;
 
-    const char *store_prefix = getenv("MAVCAM_DEFAULT_STORE_PREFIX");
-    if (store_prefix == NULL) {
-        base::LogWarn() << "No store prefix found";
-    } else {
-        options.store_prefix = store_prefix;
-        base::LogInfo() << "Set store prefix to " << options.store_prefix;
-    }
-
     // subscribe capture callback
     _mav_camera->set_capture_callback(RGBCaptureCallback, this);
     result = _mav_camera->open(options);
@@ -814,23 +893,19 @@ bool CameraLocalClient::set_camera_mode(std::string mode) {
 std::string CameraLocalClient::init_camera_sensor_mode() {
     auto store_sensor_mode = _camera_param.get_value(kCameraSensorModeName);
     if (store_sensor_mode.empty()) {
-        //init default sensor mode
-        mav_camera::Result result;
-        mav_camera::SensorMode sensor_mode;
-        std::tie(result, sensor_mode) = _mav_camera->get_sensor_mode();
-        std::string str_sensor_mode = "2";
-        if (result == mav_camera::Result::Success) {
-            switch (sensor_mode) {
-                case mav_camera::SensorMode::Normal:
-                    str_sensor_mode = "0";
-                    break;
-                case mav_camera::SensorMode::IR:
-                    str_sensor_mode = "1";
-                    break;
-                case mav_camera::SensorMode::Dual:
-                    str_sensor_mode = "2";
-                    break;
-            }
+        //init default sensor mode to dual
+        _sensor_mode = SensorMode::Dual;
+        std::string str_sensor_mode = "";
+        switch (_sensor_mode) {
+            case SensorMode::Normal:
+                str_sensor_mode = "0";
+                break;
+            case SensorMode::IR:
+                str_sensor_mode = "1";
+                break;
+            case SensorMode::Dual:
+                str_sensor_mode = "2";
+                break;
         }
         _camera_param.set_value(kCameraSensorModeName, str_sensor_mode);
         return str_sensor_mode;
@@ -841,18 +916,14 @@ std::string CameraLocalClient::init_camera_sensor_mode() {
 }
 
 bool CameraLocalClient::set_camera_sensor_mode(std::string sensor_mode) {
-    mav_camera::Result result = mav_camera::Result::Unknown;
-    mav_camera::SensorMode set_sensor_mode = mav_camera::SensorMode::Dual;
     if (sensor_mode == "0") {
-        set_sensor_mode = mav_camera::SensorMode::Normal;
+        _sensor_mode = SensorMode::Normal;
     } else if (sensor_mode == "1") {
-        set_sensor_mode = mav_camera::SensorMode::IR;
+        _sensor_mode = SensorMode::IR;
     } else if (sensor_mode == "2") {
-        set_sensor_mode = mav_camera::SensorMode::Dual;
+        _sensor_mode = SensorMode::Dual;
     }
-    result = _mav_camera->set_sensor_mode(set_sensor_mode);
-    base::LogDebug() << "set camera sensor mode to " << sensor_mode << " result " << int(result);
-    return result == mav_camera::Result::Success;
+    return true;
 }
 
 std::string CameraLocalClient::init_camera_display_mode() {
@@ -1208,10 +1279,9 @@ bool CameraLocalClient::init_ir_camera() {
 
     _ir_camera->set_log_path("/data/camera/ir_cam.log");
 
-    // TODO (thomas) : read from config file
     ir_camera::Options options;
-    options.brand = "MAVCAM";
-    options.module = "IR_DEMO";
+    options.brand = kCameraBrand;
+    options.module = kCameraModule;
 
     if (!_ir_camera->open(options)) {
         base::LogError() << "open ir camera failed";
@@ -1344,8 +1414,7 @@ bool CameraLocalClient::init_storage_manager() {
     }
 
     _storage_manager = create_storage_manager(StorageType::SD);
-    std::string prefix = "";  // not set prefix for now
-    if (!_storage_manager->open(prefix)) {
+    if (!_storage_manager->open(kCameraBrand)) {
         base::LogError() << "Open storage manager failed";
         dlclose(_storage_manager_handle);
         _storage_manager_handle = NULL;
