@@ -242,6 +242,7 @@ private:
     std::atomic<bool> _is_reseting{false};
     std::mutex _action_mutex{};  // camera action mutex
     PreivewStreamType _preview_type;
+    SensorMode _sensor_mode;
 private:
     void *_storage_manager_handle{NULL};
     StorageManager *_storage_manager{nullptr};

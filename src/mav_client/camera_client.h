@@ -16,6 +16,12 @@ enum class PreivewStreamType {
     Mix,
 };
 
+enum class SensorMode {
+    Normal, /**< @brief only enable rgb stream. */
+    IR,     /**< @brief only enable ir stream. */
+    Dual,   /**< @brief enable rgb and ir both */
+};
+
 class CameraClient {
 public:
     virtual ~CameraClient() {}
