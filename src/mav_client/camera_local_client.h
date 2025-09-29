@@ -11,6 +11,7 @@
 #include "ir_camera.h"
 #include "mav_camera.h"
 #include "render_bridge.h"
+#include "storage_manager.h"
 
 namespace mavcam {
 
@@ -57,6 +58,14 @@ private:
      * @brief deinit instance
      */
     void deinit();
+    /**
+     * @brief init mav camera
+     */
+    bool init_mav_camera();
+    /**
+     * @brief free mav camera
+     */
+    void free_mav_camera();
     /**
      * @brief build setting with name and value
      */
@@ -208,6 +217,14 @@ private:
      */
     void free_render_bridge();
     /**
+     * @brief init storage manager
+     */
+    bool init_storage_manager();
+    /**
+     * @brief free storage manager
+     */
+    void free_storage_manager();
+    /**
      * @brief check sdcard status for led control
      */
     void check_sdcard_status();
@@ -223,13 +240,15 @@ private:
     mutable std::unordered_map<std::string, std::string> _settings;
     std::atomic<bool> _is_formatting{false};
     std::atomic<bool> _is_reseting{false};
+    std::mutex _action_mutex{};  // camera action mutex
     PreivewStreamType _preview_type;
 private:
-    std::mutex _mutex{};
+    void *_storage_manager_handle{NULL};
+    StorageManager *_storage_manager{nullptr};
     mutable std::mutex _storage_information_mutex;
-    mutable mav_camera::StorageInformation _current_storage_information;
+    mutable StorageInformation _current_storage_information;
 private:
-    void *_plugin_handle{NULL};
+    void *_mav_camera_handle{NULL};
     mav_camera::MavCamera *_mav_camera{nullptr};
 private:
     void *_ir_camera_handle{NULL};
