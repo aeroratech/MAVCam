@@ -41,6 +41,7 @@ static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 #define QCOM_CAMERA_LIBERAY "libqcom_camera.so"
 #define IR_CAMERA_LIBRARY "libir_camera.so"
 #define RENDER_BRIDGE_LIBRARY "librender_bridge.so"
+#define STORAGE_MANAGER_LIBRARY "libstorage_manager.so"
 
 void RGBCaptureCallback(mav_camera::MAVFrame *frame, void *context) {
     if (context != NULL) {
@@ -76,7 +77,7 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
             return mavsdk::CameraServer::Result::Denied;
         }
     }
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_action_mutex);
     auto result = _mav_camera->take_photo();
     auto convert_result = convert_camera_result_to_mav_server_result(result);
     if (convert_result == mavsdk::CameraServer::Result::Success) {
@@ -99,7 +100,7 @@ mavsdk::CameraServer::Result CameraLocalClient::start_video() {
             return mavsdk::CameraServer::Result::Denied;
         }
     }
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_action_mutex);
 
     auto result = _mav_camera->start_video();
     auto mav_result = convert_camera_result_to_mav_server_result(result);
@@ -118,7 +119,7 @@ mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
     if (_mav_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_action_mutex);
     if (!_is_recording_video) {
         base::LogWarn() << "call stop video without video is recording";
         return mavsdk::CameraServer::Result::Success;
@@ -141,13 +142,13 @@ mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::start_video_streaming(int stream_id) {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_action_mutex);
     base::LogDebug() << "locally call start video streaming";
     return mavsdk::CameraServer::Result::Success;
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::stop_video_streaming(int stream_id) {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_action_mutex);
     base::LogDebug() << "locally call stop video streaming";
     return mavsdk::CameraServer::Result::Success;
 }
@@ -157,7 +158,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_mode(mavsdk::CameraServer::M
     if (_mav_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_action_mutex);
     mav_camera::Result result = mav_camera::Result::Unknown;
     std::string setting_mode = "0";
     if (mode == mavsdk::CameraServer::Mode::Photo) {
@@ -194,7 +195,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
     if (_mav_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_action_mutex);
     if (_is_reseting.exchange(true)) {
         return mavsdk::CameraServer::Result::Busy;
     }
@@ -253,7 +254,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
     if (_mav_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_action_mutex);
     auto result = _mav_camera->set_zoom(range);
     return convert_camera_result_to_mav_server_result(result);
 }
@@ -339,48 +340,40 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_storage_information(
     storage_information.available_storage_mib = _current_storage_information.available_storage_mib;
 
     switch (_current_storage_information.storage_status) {
-        case mav_camera::StorageInformation::StorageStatus::Formatted:
+        case StorageInformation::StorageStatus::Formatted:
             storage_information.storage_status =
                 mavsdk::CameraServer::StorageInformation::StorageStatus::Formatted;
             break;
-        case mav_camera::StorageInformation::StorageStatus::Unformatted:
+        case StorageInformation::StorageStatus::Unformatted:
             storage_information.storage_status =
                 mavsdk::CameraServer::StorageInformation::StorageStatus::Unformatted;
             break;
-        case mav_camera::StorageInformation::StorageStatus::NotAvailable:
+        case StorageInformation::StorageStatus::NotAvailable:
             storage_information.storage_status =
                 mavsdk::CameraServer::StorageInformation::StorageStatus::NotAvailable;
             break;
-        case mav_camera::StorageInformation::StorageStatus::NotSupported:
+        case StorageInformation::StorageStatus::NotSupported:
             storage_information.storage_status =
                 mavsdk::CameraServer::StorageInformation::StorageStatus::NotSupported;
             break;
     }
 
     switch (_current_storage_information.storage_type) {
-        case mav_camera::StorageType::Hd:
+        case StorageType::UsbStick:
             storage_information.storage_type =
-                mavsdk::CameraServer::StorageInformation::StorageType::Hd;
+                mavsdk::CameraServer::StorageInformation::StorageType::UsbStick;
             break;
-        case mav_camera::StorageType::Microsd:
+        case StorageType::SD:
             storage_information.storage_type =
                 mavsdk::CameraServer::StorageInformation::StorageType::Microsd;
             break;
-        case mav_camera::StorageType::Other:
+        case StorageType::Internal:
             storage_information.storage_type =
                 mavsdk::CameraServer::StorageInformation::StorageType::Other;
             break;
-        case mav_camera::StorageType::Sd:
-            storage_information.storage_type =
-                mavsdk::CameraServer::StorageInformation::StorageType::Sd;
-            break;
-        case mav_camera::StorageType::Unknown:
+        default:
             storage_information.storage_type =
                 mavsdk::CameraServer::StorageInformation::StorageType::Unknown;
-            break;
-        case mav_camera::StorageType::UsbStick:
-            storage_information.storage_type =
-                mavsdk::CameraServer::StorageInformation::StorageType::UsbStick;
             break;
     }
     return mavsdk::CameraServer::Result::Success;
@@ -497,16 +490,109 @@ std::pair<mavsdk::CameraServer::Result, mavsdk::Camera::Setting> CameraLocalClie
 }
 
 bool CameraLocalClient::init() {
+    if (!init_storage_manager()) {
+        return false;
+    }
     if (!init_render_bridge()) {
         return false;
     }
 
+    if (!init_mav_camera()) {
+        return false;
+    }
+    // init mav camera settings
+    _settings[kCameraSensorModeName] = init_camera_sensor_mode();
+    _settings[kCameraDisplayModeName] = init_camera_display_mode();
+    _settings[kWhitebalanceModeName] = init_whitebalance_mode();
+    _settings[kExposureMode] = init_exposure_mode();
+    _settings[kEVName] = init_exposure_value();
+    _settings[kISOName] = init_iso();
+    _settings[kShutterSpeedName] = init_shutter_speed();
+    _settings[kVideoFormat] = init_video_format();
+    _settings[kMeteringModeName] = init_metering_mode();
+    _settings[kSharpnessName] = init_sharpness();
+    // always disable ae lock on init
+    _settings[kAELockName] = "0";
+
+    // NOTE (thomas): don't check ir camera status, because camera can init without ir camera
+    init_ir_camera();
+    _settings[kIrCamPalette] = init_ir_palette();
+    _settings[kIrCamFFC] = "0";
+
+    base::LogDebug() << "Init settings :";
+    for (const auto &setting : _settings) {
+        base::LogDebug() << "  - " << setting.first << " : " << setting.second;
+    }
+    return true;
+}
+
+void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
+                                         ir_camera::IRFrame *ir_frame) {
+    if (_render_bridge == nullptr) {
+        return;
+    }
+    if (_preview_type == PreivewStreamType::RGBStreamOnly && rgb_frame != nullptr) {
+        _render_bridge->draw_nv12_frame((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
+                                        rgb_frame->height, rgb_frame->stride, rgb_frame->slice);
+    } else if (_preview_type == PreivewStreamType::InfraredStreamOnly && ir_frame != nullptr) {
+        _render_bridge->draw_nv12_frame(ir_frame->vaddr, ir_frame->width, ir_frame->height,
+                                        ir_frame->width, ir_frame->height);
+    } else if (_preview_type == PreivewStreamType::SideBySide) {
+        if (rgb_frame != NULL) {
+            _render_bridge->draw_rgb_frame_in_left((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
+                                                   rgb_frame->height, rgb_frame->stride,
+                                                   rgb_frame->slice);
+        }
+        if (ir_frame != NULL) {
+            _render_bridge->draw_ir_frame_in_right(ir_frame->vaddr, ir_frame->width,
+                                                   ir_frame->height, ir_frame->width,
+                                                   ir_frame->height);
+        }
+    } else if (_preview_type == PreivewStreamType::PIP) {
+        if (rgb_frame != NULL) {
+            _render_bridge->draw_nv12_frame((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
+                                            rgb_frame->height, rgb_frame->stride, rgb_frame->slice);
+        }
+        if (ir_frame != NULL) {
+            _render_bridge->draw_ir_frame_in_PIP(ir_frame->vaddr, ir_frame->width, ir_frame->height,
+                                                 ir_frame->width, ir_frame->height);
+        }
+    } else if (_preview_type == PreivewStreamType::Superimpose) {
+        if (rgb_frame != NULL) {
+            _render_bridge->draw_rgb_frame_in_superimpose((uint8_t *)rgb_frame->vaddr,
+                                                          rgb_frame->width, rgb_frame->height,
+                                                          rgb_frame->stride, rgb_frame->slice);
+        }
+        if (ir_frame != NULL) {
+            _render_bridge->draw_ir_frame_in_superimpose(ir_frame->vaddr, ir_frame->width,
+                                                         ir_frame->height, ir_frame->width,
+                                                         ir_frame->height);
+        }
+    } else if (_preview_type == PreivewStreamType::Mix) {
+        if (rgb_frame != NULL) {
+            _render_bridge->draw_rgb_frame_in_mix((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
+                                                  rgb_frame->height, rgb_frame->stride,
+                                                  rgb_frame->slice);
+        }
+        if (ir_frame != NULL) {
+            _render_bridge->draw_ir_frame_in_mix(ir_frame->vaddr, ir_frame->width, ir_frame->height,
+                                                 ir_frame->width, ir_frame->height);
+        }
+    }
+}
+
+void CameraLocalClient::deinit() {
+    free_ir_camera();
+    free_render_bridge();
+    free_storage_manager();
+}
+
+bool CameraLocalClient::init_mav_camera() {
     if (_mav_camera != nullptr) {
         return true;
     }
-
-    _plugin_handle = dlopen(QCOM_CAMERA_LIBERAY, RTLD_NOW);
-    if (_plugin_handle == NULL) {
+    _mav_camera_handle = dlopen(QCOM_CAMERA_LIBERAY, RTLD_NOW);
+    if (_mav_camera_handle == NULL) {
         char const *err_str = dlerror();
         base::LogError() << "load module " << QCOM_CAMERA_LIBERAY << " failed "
                          << (err_str != NULL ? err_str : "unknown");
@@ -515,19 +601,19 @@ bool CameraLocalClient::init() {
 
     typedef mav_camera::MavCamera *(*create_qcom_camera_fun)();
     create_qcom_camera_fun create_camera_fun =
-        (create_qcom_camera_fun)dlsym(_plugin_handle, "create_qcom_camera");
+        (create_qcom_camera_fun)dlsym(_mav_camera_handle, "create_qcom_camera");
     if (create_camera_fun == NULL) {
         base::LogError() << "cannot find symbol create_qcom_camera";
-        dlclose(_plugin_handle);
-        _plugin_handle = NULL;
+        dlclose(_mav_camera_handle);
+        _mav_camera_handle = NULL;
         return false;
     }
 
     _mav_camera = create_camera_fun();
     if (_mav_camera == nullptr) {
         base::LogError() << "cannot create mav camera instance";
-        dlclose(_plugin_handle);
-        _plugin_handle = NULL;
+        dlclose(_mav_camera_handle);
+        _mav_camera_handle = NULL;
         return false;
     }
 
@@ -535,6 +621,8 @@ bool CameraLocalClient::init() {
     mav_camera::Result result = _mav_camera->prepare();
     if (result != mav_camera::Result::Success) {
         base::LogDebug() << "cannot find qcom camera";
+        dlclose(_mav_camera_handle);
+        _mav_camera_handle = NULL;
         return false;
     }
 
@@ -690,106 +778,19 @@ bool CameraLocalClient::init() {
     if (result == mav_camera::Result::Success) {
         base::LogDebug() << "open qcom camera success";
     }
-
-    _mav_camera->subscribe_storage_information(
-        [&](mav_camera::Result result, mav_camera::StorageInformation storage_information) {
-            std::lock_guard<std::mutex> lock(_storage_information_mutex);
-            _current_storage_information = storage_information;
-            check_sdcard_status();
-        });
-
-    // init all settings
-    _settings[kCameraSensorModeName] = init_camera_sensor_mode();
-    _settings[kCameraDisplayModeName] = init_camera_display_mode();
-    _settings[kWhitebalanceModeName] = init_whitebalance_mode();
-    _settings[kExposureMode] = init_exposure_mode();
-    _settings[kEVName] = init_exposure_value();
-    _settings[kISOName] = init_iso();
-    _settings[kShutterSpeedName] = init_shutter_speed();
-    _settings[kVideoFormat] = init_video_format();
-    _settings[kMeteringModeName] = init_metering_mode();
-    _settings[kSharpnessName] = init_sharpness();
-    // always disable ae lock on init
-    _settings[kAELockName] = "0";
-
-    // init ir camera
-    init_ir_camera();
-    _settings[kIrCamPalette] = init_ir_palette();
-    _settings[kIrCamFFC] = "0";
-
-    base::LogDebug() << "Init settings :";
-    for (const auto &setting : _settings) {
-        base::LogDebug() << "  - " << setting.first << " : " << setting.second;
-    }
-    return true;
+    return result == mav_camera::Result::Success;
 }
 
-void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
-                                         ir_camera::IRFrame *ir_frame) {
-    if (_render_bridge == nullptr) {
-        return;
-    }
-    if (_preview_type == PreivewStreamType::RGBStreamOnly && rgb_frame != nullptr) {
-        _render_bridge->draw_nv12_frame((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                        rgb_frame->height, rgb_frame->stride, rgb_frame->slice);
-    } else if (_preview_type == PreivewStreamType::InfraredStreamOnly && ir_frame != nullptr) {
-        _render_bridge->draw_nv12_frame(ir_frame->vaddr, ir_frame->width, ir_frame->height,
-                                        ir_frame->width, ir_frame->height);
-    } else if (_preview_type == PreivewStreamType::SideBySide) {
-        if (rgb_frame != NULL) {
-            _render_bridge->draw_rgb_frame_in_left((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                                   rgb_frame->height, rgb_frame->stride,
-                                                   rgb_frame->slice);
-        }
-        if (ir_frame != NULL) {
-            _render_bridge->draw_ir_frame_in_right(ir_frame->vaddr, ir_frame->width,
-                                                   ir_frame->height, ir_frame->width,
-                                                   ir_frame->height);
-        }
-    } else if (_preview_type == PreivewStreamType::PIP) {
-        if (rgb_frame != NULL) {
-            _render_bridge->draw_nv12_frame((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                            rgb_frame->height, rgb_frame->stride, rgb_frame->slice);
-        }
-        if (ir_frame != NULL) {
-            _render_bridge->draw_ir_frame_in_PIP(ir_frame->vaddr, ir_frame->width, ir_frame->height,
-                                                 ir_frame->width, ir_frame->height);
-        }
-    } else if (_preview_type == PreivewStreamType::Superimpose) {
-        if (rgb_frame != NULL) {
-            _render_bridge->draw_nv12_frame((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                            rgb_frame->height, rgb_frame->stride, rgb_frame->slice);
-        }
-        if (ir_frame != NULL) {
-            _render_bridge->draw_ir_frame_in_superimpose(ir_frame->vaddr, ir_frame->width,
-                                                         ir_frame->height, ir_frame->width,
-                                                         ir_frame->height);
-        }
-    } else if (_preview_type == PreivewStreamType::Mix) {
-        if (rgb_frame != NULL) {
-            _render_bridge->draw_rgb_frame_in_mix((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                                  rgb_frame->height, rgb_frame->stride,
-                                                  rgb_frame->slice);
-        }
-        if (ir_frame != NULL) {
-            _render_bridge->draw_ir_frame_in_mix(ir_frame->vaddr, ir_frame->width, ir_frame->height,
-                                                 ir_frame->width, ir_frame->height);
-        }
-    }
-}
-
-void CameraLocalClient::deinit() {
+void CameraLocalClient::free_mav_camera() {
     if (_mav_camera != nullptr) {
         _mav_camera->close();
         delete _mav_camera;
         _mav_camera = nullptr;
     }
-    if (_plugin_handle != NULL) {
-        dlclose(_plugin_handle);
-        _plugin_handle = NULL;
+    if (_mav_camera_handle != NULL) {
+        dlclose(_mav_camera_handle);
+        _mav_camera_handle = NULL;
     }
-    free_ir_camera();
-    free_render_bridge();
 }
 
 mavsdk::Camera::Setting CameraLocalClient::build_setting(std::string name, std::string value) {
@@ -1298,7 +1299,7 @@ bool CameraLocalClient::init_render_bridge() {
 
     _render_bridge = create_render_bridge(RenderType::Weston);
     if (!_render_bridge->open()) {
-        base::LogError() << "open render bridge failed";
+        base::LogError() << "Open render bridge failed";
         dlclose(_render_bridge_handle);
         _render_bridge_handle = NULL;
         return false;
@@ -1318,9 +1319,62 @@ void CameraLocalClient::free_render_bridge() {
     }
 }
 
+bool CameraLocalClient::init_storage_manager() {
+    if (_storage_manager != nullptr) {
+        return true;
+    }
+    _storage_manager_handle = dlopen(STORAGE_MANAGER_LIBRARY, RTLD_NOW);
+    if (_storage_manager_handle == NULL) {
+        char const *err_str = dlerror();
+        base::LogError() << "Load module " << STORAGE_MANAGER_LIBRARY << " failed "
+                         << (err_str != NULL ? err_str : "unknown");
+        return false;
+    } else {
+        base::LogDebug() << "Success load " << STORAGE_MANAGER_LIBRARY;
+    }
+
+    typedef StorageManager *(*create_storage_manager_fun)(StorageType storage_type);
+    create_storage_manager_fun create_storage_manager =
+        (create_storage_manager_fun)dlsym(_storage_manager_handle, "create_storage_manager");
+    if (create_storage_manager == NULL) {
+        base::LogError() << "Cannot find symbol create_storage_manager";
+        dlclose(_storage_manager_handle);
+        _storage_manager_handle = NULL;
+        return false;
+    }
+
+    _storage_manager = create_storage_manager(StorageType::SD);
+    std::string prefix = "";  // not set prefix for now
+    if (!_storage_manager->open(prefix)) {
+        base::LogError() << "Open storage manager failed";
+        dlclose(_storage_manager_handle);
+        _storage_manager_handle = NULL;
+        return false;
+    }
+
+    _storage_manager->subscribe_storage_info([&](StorageInformation storage_information) {
+        std::lock_guard<std::mutex> lock(_storage_information_mutex);
+        _current_storage_information = storage_information;
+        check_sdcard_status();
+    });
+    return true;
+}
+
+void CameraLocalClient::free_storage_manager() {
+    if (_storage_manager != nullptr) {
+        _storage_manager->close();
+        delete _storage_manager;
+        _storage_manager = nullptr;
+    }
+    if (_storage_manager_handle != NULL) {
+        dlclose(_storage_manager_handle);
+        _storage_manager_handle = NULL;
+    }
+}
+
 void CameraLocalClient::check_sdcard_status() {
-    bool sdcard_valid = _current_storage_information.storage_status ==
-                        mav_camera::StorageInformation::StorageStatus::Formatted;
+    bool sdcard_valid =
+        _current_storage_information.storage_status == StorageInformation::StorageStatus::Formatted;
     bool sdcard_full = _current_storage_information.available_storage_mib < kSDCardMinAvaliableMB;
     if (!sdcard_valid || sdcard_full) {
         // when sdcard is umont or full, need stop video recording
