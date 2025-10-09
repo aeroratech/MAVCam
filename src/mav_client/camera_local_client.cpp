@@ -43,9 +43,15 @@ static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 #define RENDER_BRIDGE_LIBRARY "librender_bridge.so"
 #define STORAGE_MANAGER_LIBRARY "libstorage_manager.so"
 
-// TODO (thomas) : read from config file
-static std::string kCameraBrand = "ACSL";
-static std::string kCameraModule = "SAMO";
+static std::string kCameraBrand = []() {
+    const char *env = std::getenv("CAM_BRAND");
+    return env ? std::string(env) : "AERORA";
+}();
+
+static std::string kCameraModule = []() {
+    const char *env = std::getenv("CAM_MODEL");
+    return env ? std::string(env) : "DEMO";
+}();
 
 void RGBCaptureCallback(mav_camera::MAVFrame *frame, void *context) {
     if (context != NULL) {
