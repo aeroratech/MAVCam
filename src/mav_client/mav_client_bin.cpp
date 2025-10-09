@@ -19,7 +19,6 @@ static auto constexpr default_rpc_port = 50051;
 static std::string default_ftp_path = "/usr/share/mav-cam/";
 static std::string default_log_path = "/data/camera/";
 static bool work_as_autopilot = false;
-static std::string default_store_prefix = "NDAA";
 
 static void usage(const char *bin_name);
 static void init_log();
@@ -79,13 +78,6 @@ int main(int argc, const char *argv[]) {
             }
             default_log_path = std::string(argv[i + 1]);
             i++;
-        } else if (current_arg == "--store_prefix") {
-            if (argc <= i + 1) {
-                usage(argv[0]);
-                return 1;
-            }
-            default_store_prefix = std::string(argv[i + 1]);
-            i++;
         } else if (current_arg == "--camera_mode") {
             if (argc <= i + 1) {
                 usage(argv[0]);
@@ -130,8 +122,6 @@ int main(int argc, const char *argv[]) {
         base::LogInfo() << "Work as autopilot";
     }
 
-    setenv("MAVCAM_DEFAULT_STORE_PREFIX", default_store_prefix.c_str(), 1);
-    base::LogInfo() << "Store prefix is " << default_store_prefix;
     const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
     if (init_camera_mode != NULL) {
         base::LogInfo() << "Init camera mode is " << init_camera_mode;
@@ -172,8 +162,6 @@ void usage(const char *bin_name) {
               << " (default is " << default_ftp_path << ")" << '\n'
               << "\t--log_path     : store output log to file path, default is " << default_log_path
               << '\n'
-              << "\t--store_prefix : store folder and file prefix, default is "
-              << default_store_prefix << '\n'
               << "\t--camera_mode  : init camera mode, 0 for photo mode 1 for video mode" << '\n'
               << "\t--snapshot_resolution : init snapshot resoltuion" << '\n'
               << "\t--autopilot           : make mav_client work as Autopilot" << '\n';

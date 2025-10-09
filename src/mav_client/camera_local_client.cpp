@@ -50,7 +50,7 @@ static std::string kCameraBrand = []() {
 
 static std::string kCameraModule = []() {
     const char *env = std::getenv("CAM_MODEL");
-    return env ? std::string(env) : "DEMO";
+    return env ? std::string(env) : "AERORA";
 }();
 
 void RGBCaptureCallback(mav_camera::MAVFrame *frame, void *context) {
