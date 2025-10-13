@@ -623,11 +623,12 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
         return;
     }
     if (_preview_type == PreivewStreamType::RGBStreamOnly && rgb_frame != nullptr) {
-        _render_bridge->draw_nv12_frame((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                        rgb_frame->height, rgb_frame->stride, rgb_frame->slice);
+        _render_bridge->draw_rgb_frame_in_full_screen((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
+                                                      rgb_frame->height, rgb_frame->stride,
+                                                      rgb_frame->slice);
     } else if (_preview_type == PreivewStreamType::InfraredStreamOnly && ir_frame != nullptr) {
-        _render_bridge->draw_nv12_frame(ir_frame->vaddr, ir_frame->width, ir_frame->height,
-                                        ir_frame->width, ir_frame->height);
+        _render_bridge->draw_ir_frame_in_full_screen(
+            ir_frame->vaddr, ir_frame->width, ir_frame->height, ir_frame->width, ir_frame->height);
     } else if (_preview_type == PreivewStreamType::SideBySide) {
         if (rgb_frame != NULL) {
             _render_bridge->draw_rgb_frame_in_left((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
@@ -641,8 +642,9 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
         }
     } else if (_preview_type == PreivewStreamType::PIP) {
         if (rgb_frame != NULL) {
-            _render_bridge->draw_nv12_frame((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                            rgb_frame->height, rgb_frame->stride, rgb_frame->slice);
+            _render_bridge->draw_rgb_frame_in_full_screen((uint8_t *)rgb_frame->vaddr,
+                                                          rgb_frame->width, rgb_frame->height,
+                                                          rgb_frame->stride, rgb_frame->slice);
         }
         if (ir_frame != NULL) {
             _render_bridge->draw_ir_frame_in_PIP(ir_frame->vaddr, ir_frame->width, ir_frame->height,
