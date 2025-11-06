@@ -111,7 +111,7 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
 
     auto return_result = mavsdk::CameraServer::Result::Success;
     bool success = false;
-    if (_sensor_mode == SensorMode::IR) {
+    if (_sensor_mode == SensorMode::IR && _ir_camera != nullptr) {
         std::string file_path = generate_new_storage_path();
         success = _ir_camera->take_photo(file_path);
         if (!success) {
@@ -125,7 +125,7 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
             base::LogInfo() << "Take rgb photo failed with result " << return_result;
         }
         success = (return_result == mavsdk::CameraServer::Result::Success);
-        if (_sensor_mode == SensorMode::Dual) {
+        if (_sensor_mode == SensorMode::Dual && _ir_camera != nullptr) {
             file_index++;
             std::string file_path = generate_new_storage_path();
             success = _ir_camera->take_photo(file_path);
@@ -166,7 +166,7 @@ mavsdk::CameraServer::Result CameraLocalClient::start_video() {
 
     auto return_result = mavsdk::CameraServer::Result::Success;
     bool success = false;
-    if (_sensor_mode == SensorMode::IR) {
+    if (_sensor_mode == SensorMode::IR && _ir_camera != nullptr) {
         std::string file_path = generate_new_storage_path();
         success = _ir_camera->start_video_recording(file_path);
         if (!success) {
@@ -180,7 +180,7 @@ mavsdk::CameraServer::Result CameraLocalClient::start_video() {
             base::LogInfo() << "start video recording failed with result " << return_result;
         }
         success = (return_result == mavsdk::CameraServer::Result::Success);
-        if (_sensor_mode == SensorMode::Dual) {
+        if (_sensor_mode == SensorMode::Dual && _ir_camera != nullptr) {
             file_index++;
             std::string file_path = generate_new_storage_path();
             success = _ir_camera->start_video_recording(file_path);
@@ -210,7 +210,7 @@ mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
 
     bool success = false;
     auto mav_result = mavsdk::CameraServer::Result::Success;
-    if (_sensor_mode == SensorMode::IR) {
+    if (_sensor_mode == SensorMode::IR && _ir_camera != nullptr) {
         success = _ir_camera->stop_video_recording();
         if (!success) {
             mav_result = mavsdk::CameraServer::Result::Error;
@@ -223,7 +223,7 @@ mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
         }
         success = (mav_result == mavsdk::CameraServer::Result::Success);
 
-        if (_sensor_mode == SensorMode::Dual) {
+        if (_sensor_mode == SensorMode::Dual && _ir_camera != nullptr) {
             success = _ir_camera->stop_video_recording();
         }
     }
@@ -1336,6 +1336,8 @@ bool CameraLocalClient::init_ir_camera() {
         base::LogError() << "open ir camera failed";
         dlclose(_ir_camera_handle);
         _ir_camera_handle = NULL;
+        delete _ir_camera;
+        _ir_camera = nullptr;
         return false;
     }
 
