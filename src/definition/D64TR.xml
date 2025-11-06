@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="15">
+    <definition version="16">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -12,6 +12,7 @@
             <updates>
                 <update>CAM_PHOTO_RES</update>
                 <update>CAM_PHOTO_QC</update>
+                <update>CAM_PHOTO_FMT</update>
                 <update>CAM_SHUTTERSPD</update>
                 <update>CAM_ISO</update>
                 <update>CAM_VIDRES</update>
@@ -29,6 +30,7 @@
                     <exclusions>
                         <exclude>CAM_PHOTO_RES</exclude>
                         <exclude>CAM_PHOTO_QC</exclude>
+                        <exclude>CAM_PHOTO_FMT</exclude>
                     </exclusions>
                 </option>
             </options>
@@ -71,6 +73,17 @@
                 <option name="Super Fine" value="0" />
                 <option name="Fine" value="1" />
                 <option name="Normal" value="2" />
+            </options>
+        </parameter>
+        <parameter name="CAM_PHOTO_FMT" type="int32" default="0">
+            <description>Photo Format</description>
+            <updates>
+                <update>CAM_PHOTO_RES</update>
+            </updates>
+            <options>
+                <option name="jpg" value="0" />
+                <option name="dng" value="1" />
+                <option name="jpg+dng" value="2" />
             </options>
         </parameter>
         <parameter name="CAM_WBMODE" type="int32" default="0">
