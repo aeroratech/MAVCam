@@ -22,6 +22,7 @@ const std::string kCameraSensorModeName = "CAM_SENS_MODE";
 const std::string kCameraDisplayModeName = "CAM_DIS_MODE";
 const std::string kPhotoResolution = "CAM_PHOTO_RES";
 const std::string kPhotoQuality = "CAM_PHOTO_QC";
+const std::string kPhotoFormat = "CAM_PHOTO_FMT";
 const std::string kVideoResolution = "CAM_VIDRES";
 const std::string kVideoFormat = "CAM_VIDFMT";
 const std::string kWhitebalanceModeName = "CAM_WBMODE";
@@ -98,8 +99,13 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
     auto generate_new_storage_path = [&]() -> std::string {
         std::ostringstream oss;
         oss << storage_path << "/" << kCameraBrand << std::setw(4) << std::setfill('0')
-            << file_index << "."
-            << "jpg";
+            << file_index << ".";
+        // TODO (thomas) : not support jpg+dng now
+        if (_settings[kPhotoFormat] == "0") {
+            oss << "jpg";
+        } else {
+            oss << "dng";
+        }
         return oss.str();
     };
 
@@ -305,6 +311,8 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
                 _camera_param.set_value(kPhotoResolution, _settings[kPhotoResolution]);
                 _settings[kPhotoQuality] = "0";
                 _camera_param.set_value(kPhotoQuality, _settings[kPhotoQuality]);
+                _settings[kPhotoFormat] = "0";
+                _camera_param.set_value(kPhotoFormat, _settings[kPhotoFormat]);
                 _settings[kWhitebalanceModeName] = "0";
                 _camera_param.set_value(kWhitebalanceModeName, _settings[kWhitebalanceModeName]);
                 _settings[kExposureMode] = "0";
@@ -368,7 +376,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 15;
+        information.definition_file_version = 16;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -536,6 +544,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_video_resolution(setting.option.option_id);
     } else if (setting.setting_id == kPhotoQuality) {
         set_success = set_photo_quality(setting.option.option_id);
+    } else if (setting.setting_id == kPhotoFormat) {
+        set_success = set_photo_format(setting.option.option_id);
     } else if (setting.setting_id == kWhitebalanceModeName) {
         set_success = set_whitebalance_mode(setting.option.option_id);
     } else if (setting.setting_id == kExposureMode) {
@@ -845,6 +855,23 @@ bool CameraLocalClient::init_mav_camera() {
         }
     }
 
+    /************** Photo format *************/
+    auto store_photo_format = _camera_param.get_value(kPhotoFormat);
+    if (store_photo_format.empty()) {
+        options.photo_format = mav_camera::PhotoFormat::JPEG;
+        _settings[kPhotoFormat] = "0";  // 0 for jpeg
+        _camera_param.set_value(kPhotoFormat, "0");
+    } else {
+        _settings[kPhotoFormat] = store_photo_format;
+        if (store_photo_format == "0") {
+            options.photo_format = mav_camera::PhotoFormat::JPEG;
+        } else if (store_photo_format == "1") {
+            options.photo_format = mav_camera::PhotoFormat::DNG;
+        } else {
+            options.photo_format = mav_camera::PhotoFormat::JPEG_DNG;
+        }
+    }
+
     /************** take photo interval *************/
     auto take_photo_interval = _camera_param.get_value(kTakePhotoInterval);
     if (take_photo_interval.empty()) {
@@ -990,6 +1017,20 @@ bool CameraLocalClient::set_photo_quality(std::string value) {
         jpeg_quality = mav_camera::JpegQuality::Normal;
     }
     auto result = _mav_camera->set_jpeg_quality(jpeg_quality);
+    return result == mav_camera::Result::Success;
+}
+
+bool CameraLocalClient::set_photo_format(std::string value) {
+    mav_camera::PhotoFormat photo_format;
+    if (value == "0") {
+        photo_format = mav_camera::PhotoFormat::JPEG;
+    } else if (value == "1") {
+        photo_format = mav_camera::PhotoFormat::DNG;
+        _settings[kPhotoResolution] = "0";  //dng must be full resolution
+    } else if (value == "2") {
+        photo_format = mav_camera::PhotoFormat::JPEG_DNG;
+    }
+    auto result = _mav_camera->set_photo_format(photo_format);
     return result == mav_camera::Result::Success;
 }
 
