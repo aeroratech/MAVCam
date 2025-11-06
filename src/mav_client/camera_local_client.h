@@ -107,6 +107,10 @@ private:
      */
     bool set_photo_quality(std::string value);
     /**
+     * @brief set photo format
+     */
+    bool set_photo_format(std::string value);
+    /**
      * @brief init camera whitebalance mode
      * @details prefer to use store whitebalance mode
      * @return current white balance string value
