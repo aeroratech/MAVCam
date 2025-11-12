@@ -237,6 +237,10 @@ private:
      */
     mavsdk::CameraServer::Result convert_camera_result_to_mav_server_result(
         mav_camera::Result input_result);
+    /**
+     * @brief init render mode by mode and resolution
+     */
+    void init_render_mode();
 private:
     std::atomic<int> _image_count;
     std::atomic<bool> _is_recording_video;
@@ -261,6 +265,7 @@ private:
 private:
     void *_render_bridge_handle{NULL};
     RenderBridge *_render_bridge{nullptr};
+    RenderMode _render_mode{RenderMode::Photo_Quarter};
 private:
     CameraParam _camera_param;
     bool _sdcard_valid{true};
