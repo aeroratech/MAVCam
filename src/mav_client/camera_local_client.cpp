@@ -332,6 +332,8 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
                 _settings[kSharpnessName] = "0";
                 _camera_param.set_value(kSharpnessName, _settings[kSharpnessName]);
                 _settings[kAELockName] = "0";  // ae lock don't store to param
+
+                init_render_mode();
             }
         }
         _is_reseting.store(false);  // reset complete and relase
@@ -532,20 +534,25 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     }
 
     bool set_success = false;
+    bool need_refresh_render_mode = false;
     if (setting.setting_id == kCameraModeName) {
         set_success = set_camera_mode(setting.option.option_id);
+        need_refresh_render_mode = true;
     } else if (setting.setting_id == kCameraSensorModeName) {
         set_success = set_camera_sensor_mode(setting.option.option_id);
     } else if (setting.setting_id == kCameraDisplayModeName) {
         set_success = set_camera_display_mode(setting.option.option_id);
     } else if (setting.setting_id == kPhotoResolution) {
         set_success = set_photo_resolution(setting.option.option_id);
+        need_refresh_render_mode = true;
     } else if (setting.setting_id == kVideoResolution) {
         set_success = set_video_resolution(setting.option.option_id);
+        need_refresh_render_mode = true;
     } else if (setting.setting_id == kPhotoQuality) {
         set_success = set_photo_quality(setting.option.option_id);
     } else if (setting.setting_id == kPhotoFormat) {
         set_success = set_photo_format(setting.option.option_id);
+        need_refresh_render_mode = true;
     } else if (setting.setting_id == kWhitebalanceModeName) {
         set_success = set_whitebalance_mode(setting.option.option_id);
     } else if (setting.setting_id == kExposureMode) {
@@ -575,6 +582,10 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     if (set_success) {
         _settings[setting.setting_id] = setting.option.option_id;
         _camera_param.set_value(setting.setting_id, setting.option.option_id);
+
+        if (need_refresh_render_mode) {
+            init_render_mode();
+        }
     }
     return mavsdk::CameraServer::Result::Success;
 }
@@ -612,6 +623,9 @@ bool CameraLocalClient::init() {
     _settings[kVideoFormat] = init_video_format();
     _settings[kMeteringModeName] = init_metering_mode();
     _settings[kSharpnessName] = init_sharpness();
+
+    init_render_mode();
+
     // always disable ae lock on init
     _settings[kAELockName] = "0";
 
@@ -662,9 +676,9 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
         }
     } else if (_preview_type == PreivewStreamType::Superimpose) {
         if (rgb_frame != NULL) {
-            _render_bridge->draw_rgb_frame_in_superimpose((uint8_t *)rgb_frame->vaddr,
-                                                          rgb_frame->width, rgb_frame->height,
-                                                          rgb_frame->stride, rgb_frame->slice);
+            _render_bridge->draw_rgb_frame_in_superimpose(
+                (uint8_t *)rgb_frame->vaddr, rgb_frame->width, rgb_frame->height, rgb_frame->stride,
+                rgb_frame->slice, _render_mode);
         }
         if (ir_frame != NULL) {
             _render_bridge->draw_ir_frame_in_superimpose(ir_frame->vaddr, ir_frame->width,
@@ -675,7 +689,7 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
         if (rgb_frame != NULL) {
             _render_bridge->draw_rgb_frame_in_mix((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
                                                   rgb_frame->height, rgb_frame->stride,
-                                                  rgb_frame->slice);
+                                                  rgb_frame->slice, _render_mode);
         }
         if (ir_frame != NULL) {
             _render_bridge->draw_ir_frame_in_mix(ir_frame->vaddr, ir_frame->width, ir_frame->height,
@@ -1546,6 +1560,23 @@ mavsdk::CameraServer::Result CameraLocalClient::convert_camera_result_to_mav_ser
             break;
     }
     return output_result;
+}
+
+void CameraLocalClient::init_render_mode() {
+    _render_mode = RenderMode::Photo_Quarter;
+    if (_settings[kCameraModeName] == "0" && _settings[kPhotoResolution] == "0") {
+        _render_mode = RenderMode::Photo_Full;
+    } else if (_settings[kCameraModeName] == "0" && _settings[kPhotoResolution] == "0") {
+        _render_mode = RenderMode::Photo_Quarter;
+    } else if (_settings[kCameraModeName] == "1" && _settings[kVideoResolution] == "0") {
+        _render_mode = RenderMode::Video_4K60;
+    } else if (_settings[kCameraModeName] == "1" && _settings[kVideoResolution] == "1") {
+        _render_mode = RenderMode::Video_4K30;
+    } else if (_settings[kCameraModeName] == "1" && _settings[kVideoResolution] == "2") {
+        _render_mode = RenderMode::Video_1080p60;
+    } else if (_settings[kCameraModeName] == "1" && _settings[kVideoResolution] == "3") {
+        _render_mode = RenderMode::Video_1080p30;
+    }
 }
 
 }  // namespace mavcam
