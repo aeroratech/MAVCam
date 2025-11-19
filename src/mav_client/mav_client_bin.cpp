@@ -115,7 +115,7 @@ int main(int argc, const char *argv[]) {
     init_log();
     signal(SIGINT, signal_handler);
 
-    base::LogInfo() << "Launch mav client";
+    base::LogInfo() << "*************** Launch mav client ***************";
     base::LogInfo() << "MavCam version is " << VERSION;
     base::LogInfo() << "MavCam build time is " << BUILD_TIME;
     if (work_as_autopilot) {
@@ -168,12 +168,28 @@ void usage(const char *bin_name) {
 }
 
 static void init_log() {
+    namespace fs = std::filesystem;
     if (default_log_path.empty()) {
         return;
     }
+    constexpr size_t kMaxLogFileSize = 3 * 1024 * 1024;  // max log file size is 3MB
     std::string full_path = default_log_path + "mav_client.log";
-    auto log_stream =
-        std::make_shared<std::fstream>(full_path, std::fstream::out | std::fstream::binary);
+    // If file exists and is larger than kMaxLogFileSize, truncate it
+    auto file_status = fs::status(full_path);
+    if (fs::exists(file_status)) {
+        std::error_code ec;
+        auto sz = fs::file_size(full_path, ec);
+
+        if (!ec && sz > kMaxLogFileSize) {
+            std::ofstream ofs(full_path,
+                              std::ofstream::out | std::ofstream::trunc | std::ofstream::binary);
+            ofs.close();
+        }
+    }
+
+    // Always open in append mode
+    auto log_stream = std::make_shared<std::fstream>(
+        full_path, std::fstream::out | std::fstream::app | std::fstream::binary);
     if (!log_stream->is_open()) {
         base::LogError() << "Failed to open log file: " + full_path;
         return;
