@@ -111,11 +111,15 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
 
     auto return_result = mavsdk::CameraServer::Result::Success;
     bool success = false;
-    if (_sensor_mode == SensorMode::IR && _ir_camera != nullptr) {
-        std::string file_path = generate_new_storage_path();
-        success = _ir_camera->take_photo(file_path);
-        if (!success) {
-            return_result = mavsdk::CameraServer::Result::Error;
+    if (_sensor_mode == SensorMode::IR) {
+        if (_ir_camera != nullptr) {
+            std::string file_path = generate_new_storage_path();
+            success = _ir_camera->take_photo(file_path);
+            if (!success) {
+                return_result = mavsdk::CameraServer::Result::Error;
+            }
+        } else {
+            base::LogDebug() << "Take ir photo without ir camera";
         }
     } else if (_sensor_mode == SensorMode::Normal || _sensor_mode == SensorMode::Dual) {
         std::string file_path = generate_new_storage_path();
@@ -125,10 +129,14 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
             base::LogInfo() << "Take rgb photo failed with result " << return_result;
         }
         success = (return_result == mavsdk::CameraServer::Result::Success);
-        if (_sensor_mode == SensorMode::Dual && _ir_camera != nullptr) {
-            file_index++;
-            std::string file_path = generate_new_storage_path();
-            success = _ir_camera->take_photo(file_path);
+        if (_sensor_mode == SensorMode::Dual) {
+            if (_ir_camera != nullptr) {
+                file_index++;
+                std::string file_path = generate_new_storage_path();
+                success = _ir_camera->take_photo(file_path);
+            } else {
+                base::LogDebug() << "Take dual photo without ir camera";
+            }
         }
     }
     if (success) {
