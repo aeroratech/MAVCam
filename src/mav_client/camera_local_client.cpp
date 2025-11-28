@@ -96,15 +96,18 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
     std::lock_guard<std::mutex> lock(_action_mutex);
 
     int file_index = _storage_manager->get_file_index();
-    auto generate_new_storage_path = [&]() -> std::string {
+    auto generate_new_storage_path = [&](bool ir_photo) -> std::string {
         std::ostringstream oss;
         oss << storage_path << "/" << kCameraBrand << std::setw(4) << std::setfill('0')
             << file_index << ".";
-        // TODO (thomas) : not support jpg+dng now
-        if (_settings[kPhotoFormat] == "0") {
+        if (ir_photo) {
             oss << "jpg";
-        } else {
-            oss << "dng";
+        } else {  // TODO (thomas) : not support jpg+dng now
+            if (_settings[kPhotoFormat] == "0") {
+                oss << "jpg";
+            } else {
+                oss << "dng";
+            }
         }
         return oss.str();
     };
@@ -113,7 +116,7 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
     bool success = false;
     if (_sensor_mode == SensorMode::IR) {
         if (_ir_camera != nullptr) {
-            std::string file_path = generate_new_storage_path();
+            std::string file_path = generate_new_storage_path(true);
             success = _ir_camera->take_photo(file_path);
             if (!success) {
                 return_result = mavsdk::CameraServer::Result::Error;
@@ -122,7 +125,7 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
             base::LogDebug() << "Take ir photo without ir camera";
         }
     } else if (_sensor_mode == SensorMode::Normal || _sensor_mode == SensorMode::Dual) {
-        std::string file_path = generate_new_storage_path();
+        std::string file_path = generate_new_storage_path(false);
         auto result = _mav_camera->take_photo(file_path);
         return_result = convert_camera_result_to_mav_server_result(result);
         if (return_result != mavsdk::CameraServer::Result::Success) {
@@ -132,7 +135,7 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
         if (_sensor_mode == SensorMode::Dual) {
             if (_ir_camera != nullptr) {
                 file_index++;
-                std::string file_path = generate_new_storage_path();
+                std::string file_path = generate_new_storage_path(true);
                 success = _ir_camera->take_photo(file_path);
             } else {
                 base::LogDebug() << "Take dual photo without ir camera";
