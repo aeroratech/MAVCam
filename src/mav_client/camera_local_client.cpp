@@ -613,16 +613,16 @@ std::pair<mavsdk::CameraServer::Result, mavsdk::Camera::Setting> CameraLocalClie
 }
 
 bool CameraLocalClient::init() {
-    if (!init_storage_manager()) {
-        return false;
-    }
     if (!init_render_bridge()) {
         return false;
     }
-
     if (!init_mav_camera()) {
         return false;
     }
+    if (!init_storage_manager()) {
+        return false;
+    }
+
     // init mav camera settings
     _settings[kCameraSensorModeName] = init_camera_sensor_mode();
     _settings[kCameraDisplayModeName] = init_camera_display_mode();
