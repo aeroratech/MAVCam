@@ -1518,23 +1518,28 @@ void CameraLocalClient::free_storage_manager() {
 }
 
 void CameraLocalClient::check_sdcard_status() {
-    bool sdcard_valid =
+    bool sdcard_is_formatted =
         _current_storage_information.storage_status == StorageInformation::StorageStatus::Formatted;
-    bool sdcard_full = _current_storage_information.available_storage_mib < kSDCardMinAvaliableMB;
-    if (!sdcard_valid || sdcard_full) {
-        // when sdcard is umont or full, need stop video recording
-        if (_is_recording_video) {
-            stop_video();
-        }
-        if (_sdcard_valid) {
-            _sdcard_valid = false;
+    bool sdcard_is_full =
+        _current_storage_information.available_storage_mib < kSDCardMinAvaliableMB;
+    // The SD card should be valid only if it is formatted AND not full
+    bool should_be_valid = sdcard_is_formatted && !sdcard_is_full;
+    // If unknown OR changed → handle state change
+    if (!_sdcard_valid.has_value() || _sdcard_valid.value() != should_be_valid) {
+        // SD card becomes invalid or full
+        if (!should_be_valid) {
+            if (_is_recording_video) {
+                stop_video();
+            }
             switch_led_mode(mavcam::LedMode::SDCardError);
         }
-    } else {
-        if (!_sdcard_valid) {
-            _sdcard_valid = true;
+        // SD card becomes valid
+        else {
             switch_led_mode(mavcam::LedMode::Normal);
         }
+
+        // Update value (initializes optional on first run)
+        _sdcard_valid = should_be_valid;
     }
 }
 
