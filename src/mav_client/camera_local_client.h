@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <mutex>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -268,7 +269,7 @@ private:
     RenderMode _render_mode{RenderMode::Photo_Quarter};
 private:
     CameraParam _camera_param;
-    bool _sdcard_valid{true};
+    std::optional<bool> _sdcard_valid;  // no initial value
 };
 
 }  // namespace mavcam
