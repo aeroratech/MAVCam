@@ -345,6 +345,8 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
                 _settings[kAELockName] = "0";  // ae lock don't store to param
 
                 init_render_mode();
+
+                set_camera_display_mode(_settings[kCameraDisplayModeName]);
             }
         }
         _is_reseting.store(false);  // reset complete and relase
