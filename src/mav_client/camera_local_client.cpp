@@ -679,9 +679,9 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
         }
     } else if (_preview_type == PreivewStreamType::PIP) {
         if (rgb_frame != NULL) {
-            _render_bridge->draw_rgb_frame_in_full_screen((uint8_t *)rgb_frame->vaddr,
-                                                          rgb_frame->width, rgb_frame->height,
-                                                          rgb_frame->stride, rgb_frame->slice);
+            _render_bridge->draw_rgb_frame_in_PIP((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
+                                                  rgb_frame->height, rgb_frame->stride,
+                                                  rgb_frame->slice);
         }
         if (ir_frame != NULL) {
             _render_bridge->draw_ir_frame_in_PIP(ir_frame->vaddr, ir_frame->width, ir_frame->height,
