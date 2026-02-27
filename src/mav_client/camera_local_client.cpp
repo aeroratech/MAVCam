@@ -318,7 +318,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
             auto result = _mav_camera->reset_settings();
             if (result == mav_camera::Result::Success) {
                 // reset settings value
-                _settings[kCameraSensorModeName] = "2";  // default sensor mode is dual
+                _settings[kCameraSensorModeName] = "0";  // default sensor mode is Normal
                 _camera_param.set_value(kCameraSensorModeName, _settings[kCameraSensorModeName]);
                 _settings[kCameraDisplayModeName] = "0";
                 _camera_param.set_value(kCameraDisplayModeName, _settings[kCameraDisplayModeName]);
@@ -959,8 +959,8 @@ bool CameraLocalClient::set_camera_mode(std::string mode) {
 std::string CameraLocalClient::init_camera_sensor_mode() {
     auto store_sensor_mode = _camera_param.get_value(kCameraSensorModeName);
     if (store_sensor_mode.empty()) {
-        //init default sensor mode to dual
-        _sensor_mode = SensorMode::Dual;
+        //init default sensor mode to Normal
+        _sensor_mode = SensorMode::Normal;
         std::string str_sensor_mode = "";
         switch (_sensor_mode) {
             case SensorMode::Normal:
