@@ -307,13 +307,17 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
     if (_is_reseting.exchange(true)) {
         return mavsdk::CameraServer::Result::Busy;
     }
+    /**
+     * @brief the camera reset will cost some time and the uvc client will read wrong value on reseting.
+     * So just set camera mode to photo before execute reset function. The reset function will always success.
+     */
+    _settings[kCameraModeName] = "0";
+    _camera_param.set_value(kCameraModeName, _settings[kCameraModeName]);
     std::async(std::launch::async, [this]() {
         {
             auto result = _mav_camera->reset_settings();
             if (result == mav_camera::Result::Success) {
                 // reset settings value
-                _settings[kCameraModeName] = "0";
-                _camera_param.set_value(kCameraModeName, _settings[kCameraModeName]);
                 _settings[kCameraSensorModeName] = "2";  // default sensor mode is dual
                 _camera_param.set_value(kCameraSensorModeName, _settings[kCameraSensorModeName]);
                 _settings[kCameraDisplayModeName] = "0";
