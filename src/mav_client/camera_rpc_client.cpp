@@ -209,7 +209,8 @@ mavsdk::CameraServer::Result CameraRpcClient::format_storage(int storage_id) {
     return result;
 }
 
-mavsdk::CameraServer::Result CameraRpcClient::reset_settings() {
+mavsdk::CameraServer::Result CameraRpcClient::reset_settings(
+    std::function<void(mavsdk::CameraServer::Result)> callback) {
     std::lock_guard<std::mutex> lock(_mutex);
     base::LogDebug() << "rpc call reset settings";
 
@@ -223,7 +224,9 @@ mavsdk::CameraServer::Result CameraRpcClient::reset_settings() {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     base::LogDebug() << "Reset settings result : " << response.camera_result().result_str();
-    return translateFromRpcResult(response.camera_result().result());
+    auto result = translateFromRpcResult(response.camera_result().result());
+    callback(result);
+    return result;
 }
 
 mavsdk::CameraServer::Result CameraRpcClient::set_timestamp(int64_t time_unix_msec) {

@@ -205,12 +205,15 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
     });
 
     camera_server.subscribe_reset_settings([this, &camera_server, &param_server](int camera_id) {
-        auto result = _camera_client->reset_settings();
+        auto result = _camera_client->reset_settings([this, &param_server](mavsdk::CameraServer::Result result) {
+            if (result == mavsdk::CameraServer::Result::Success) {
+                //reset settings need fill param again
+                fill_param(param_server);
+            }
+        });
         if (result != mavsdk::CameraServer::Result::Success) {
             camera_server.respond_reset_settings(mavsdk::CameraServer::CameraFeedback::Failed);
         } else {
-            //reset settings need fill param again
-            fill_param(param_server);
             camera_server.respond_reset_settings(mavsdk::CameraServer::CameraFeedback::Ok);
         }
     });

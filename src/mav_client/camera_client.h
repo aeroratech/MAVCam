@@ -35,7 +35,11 @@ public:  // operation
     virtual mavsdk::CameraServer::Result stop_video_streaming(int stream_id) = 0;
     virtual mavsdk::CameraServer::Result set_mode(mavsdk::CameraServer::Mode mode) = 0;
     virtual mavsdk::CameraServer::Result format_storage(int storage_id) = 0;
-    virtual mavsdk::CameraServer::Result reset_settings() = 0;
+    /**
+     * @brief the reset_settings is async, so need callback to get result
+     */
+    virtual mavsdk::CameraServer::Result reset_settings(
+        std::function<void(mavsdk::CameraServer::Result)> callback) = 0;
     virtual mavsdk::CameraServer::Result set_timestamp(int64_t time_unix_msec) = 0;
     virtual mavsdk::CameraServer::Result set_zoom_range(float range) = 0;
 public:  // subscribe

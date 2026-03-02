@@ -28,7 +28,8 @@ public:  // operation
     virtual mavsdk::CameraServer::Result stop_video_streaming(int stream_id) override;
     virtual mavsdk::CameraServer::Result set_mode(mavsdk::CameraServer::Mode mode) override;
     virtual mavsdk::CameraServer::Result format_storage(int storage_id) override;
-    virtual mavsdk::CameraServer::Result reset_settings() override;
+    virtual mavsdk::CameraServer::Result reset_settings(
+        std::function<void(mavsdk::CameraServer::Result)> callback) override;
     virtual mavsdk::CameraServer::Result set_timestamp(int64_t time_unix_msec) override;
     virtual mavsdk::CameraServer::Result set_zoom_range(float range) override;
 public:  // subscribe
