@@ -298,7 +298,8 @@ mavsdk::CameraServer::Result CameraLocalClient::format_storage(int storage_id) {
     return mavsdk::CameraServer::Result::Success;
 }
 
-mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
+mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
+    std::function<void(mavsdk::CameraServer::Result)> callback) {
     base::LogDebug() << "locally call reset settings";
     if (_mav_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
@@ -313,7 +314,8 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
      */
     _settings[kCameraModeName] = "0";
     _camera_param.set_value(kCameraModeName, _settings[kCameraModeName]);
-    std::async(std::launch::async, [this]() {
+    std::async(std::launch::async, [this, callback]() {
+        auto final_result = mavsdk::CameraServer::Result::Unknown;
         {
             auto result = _mav_camera->reset_settings();
             if (result == mav_camera::Result::Success) {
@@ -351,9 +353,17 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings() {
                 init_render_mode();
 
                 set_camera_display_mode(_settings[kCameraDisplayModeName]);
+
+                final_result = mavsdk::CameraServer::Result::Success;
+            }
+            else {
+                final_result = mavsdk::CameraServer::Result::Error;
             }
         }
         _is_reseting.store(false);  // reset complete and relase
+        if (callback) {
+            callback(final_result);
+        }
     });
     return mavsdk::CameraServer::Result::Success;
 }
