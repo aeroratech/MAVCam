@@ -322,6 +322,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
                 // reset settings value
                 _settings[kCameraSensorModeName] = "0";  // default sensor mode is Normal
                 _camera_param.set_value(kCameraSensorModeName, _settings[kCameraSensorModeName]);
+                _sensor_mode = SensorMode::Normal;
                 _settings[kCameraDisplayModeName] = "0";
                 _camera_param.set_value(kCameraDisplayModeName, _settings[kCameraDisplayModeName]);
                 _settings[kPhotoResolution] = "1";  // default photo resolution is 16M mode
