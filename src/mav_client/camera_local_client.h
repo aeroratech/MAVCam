@@ -61,13 +61,13 @@ private:
      */
     void deinit();
     /**
-     * @brief init mav camera
+     * @brief init main camera
      */
-    bool init_mav_camera();
+    bool init_main_camera();
     /**
-     * @brief free mav camera
+     * @brief free main camera
      */
-    void free_mav_camera();
+    void free_main_camera();
     /**
      * @brief build setting with name and value
      */
@@ -259,8 +259,8 @@ private:
     mutable std::mutex _storage_information_mutex;
     mutable StorageInformation _current_storage_information;
 private:
-    void *_mav_camera_handle{NULL};
-    mav_camera::MavCamera *_mav_camera{nullptr};
+    void *_main_camera_handle{NULL};
+    mav_camera::MavCamera *_main_camera{nullptr};
 private:
     void *_ir_camera_handle{NULL};
     ir_camera::IRCamera *_ir_camera{nullptr};
