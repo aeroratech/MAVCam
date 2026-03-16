@@ -52,12 +52,13 @@
         <parameter name="CAM_DIS_MODE" type="int32" default="0">
             <description>Camera Display Mode</description>
             <options>
-                <option name="RGB Only" value="0" />
-                <option name="IR Only" value="1" />
-                <option name="Side by Side" value="2" />
-                <option name="Picture in Picture" value="3" />
-                <option name="Superimpose" value="4" />
-                <option name="Mix" value = "5" />
+                <option name="Main" value="0" />
+                <option name="Telephoto" value="1" />
+                <option name="IR Only" value="2" />
+                <option name="Side by Side" value="3" />
+                <option name="Picture in Picture" value="4" />
+                <option name="Superimpose" value="5" />
+                <option name="Mix" value = "6" />
             </options>
         </parameter>
         <parameter name="CAM_PHOTO_RES" type="int32" default="1">

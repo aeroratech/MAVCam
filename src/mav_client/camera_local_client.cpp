@@ -54,17 +54,24 @@ static std::string kCameraModule = []() {
     return env ? std::string(env) : "AERORA";
 }();
 
-void RGBCaptureCallback(mav_camera::MAVFrame *frame, void *context) {
+void MainCameraCallback(mav_camera::MAVFrame *frame, void *context) {
     if (context != NULL) {
         CameraLocalClient *client = (CameraLocalClient *)context;
-        client->capture_callback(frame, NULL);
+        client->capture_callback(frame, NULL, NULL);
+    }
+}
+
+void TelephotoRGBCaptureCallback(mav_camera::MAVFrame *frame, void *context) {
+    if (context != NULL) {
+        CameraLocalClient *client = (CameraLocalClient *)context;
+        client->capture_callback(NULL, frame, NULL);
     }
 }
 
 void IRCaptureCallback(ir_camera::IRFrame *frame, void *context) {
     if (context != NULL) {
         CameraLocalClient *client = (CameraLocalClient *)context;
-        client->capture_callback(NULL, frame);
+        client->capture_callback(NULL, NULL, frame);
     }
 }
 
@@ -79,7 +86,7 @@ CameraLocalClient::~CameraLocalClient() {
 
 mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
     base::LogDebug() << "locally call take photo " << index;
-    if (_main_camera == nullptr) {
+    if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     {  // when sdcard storage is less then avaliable space just return failed
@@ -151,7 +158,7 @@ mavsdk::CameraServer::Result CameraLocalClient::take_photo(int index) {
 
 mavsdk::CameraServer::Result CameraLocalClient::start_video() {
     base::LogDebug() << "locally call start video";
-    if (_main_camera == nullptr) {
+    if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     {  // when sdcard storage is less then avaliable space just return failed
@@ -210,7 +217,7 @@ mavsdk::CameraServer::Result CameraLocalClient::start_video() {
 
 mavsdk::CameraServer::Result CameraLocalClient::stop_video() {
     base::LogDebug() << "locally call stop video";
-    if (_main_camera == nullptr) {
+    if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     std::lock_guard<std::mutex> lock(_action_mutex);
@@ -264,7 +271,7 @@ mavsdk::CameraServer::Result CameraLocalClient::stop_video_streaming(int stream_
 
 mavsdk::CameraServer::Result CameraLocalClient::set_mode(mavsdk::CameraServer::Mode mode) {
     base::LogDebug() << "locally call set mode " << mode;
-    if (_main_camera == nullptr) {
+    if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     std::lock_guard<std::mutex> lock(_action_mutex);
@@ -282,7 +289,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_mode(mavsdk::CameraServer::M
 
 mavsdk::CameraServer::Result CameraLocalClient::format_storage(int storage_id) {
     base::LogDebug() << "locally call format storage " << storage_id;
-    if (_main_camera == nullptr) {
+    if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     if (_is_formatting.exchange(true)) {
@@ -301,7 +308,7 @@ mavsdk::CameraServer::Result CameraLocalClient::format_storage(int storage_id) {
 mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
     std::function<void(mavsdk::CameraServer::Result)> callback) {
     base::LogDebug() << "locally call reset settings";
-    if (_main_camera == nullptr) {
+    if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     std::lock_guard<std::mutex> lock(_action_mutex);
@@ -371,7 +378,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
 
 mavsdk::CameraServer::Result CameraLocalClient::set_timestamp(int64_t time_unix_msec) {
     base::LogDebug() << "local call set timestamp " << time_unix_msec;
-    if (_main_camera == nullptr) {
+    if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     auto result = _main_camera->set_timestamp(time_unix_msec);
@@ -380,7 +387,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_timestamp(int64_t time_unix_
 
 mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
     base::LogDebug() << "local call set zoom range " << range;
-    if (_main_camera == nullptr) {
+    if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     std::lock_guard<std::mutex> lock(_action_mutex);
@@ -552,7 +559,7 @@ mavsdk::CameraServer::Result CameraLocalClient::retrieve_current_settings(
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Setting setting) {
-    if (_main_camera == nullptr) {
+    if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     base::LogDebug() << "change " << setting.setting_id << " to " << setting.option.option_id;
@@ -669,23 +676,32 @@ bool CameraLocalClient::init() {
     return true;
 }
 
-void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
+void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
+                                         mav_camera::MAVFrame *telephoto_frame,
                                          ir_camera::IRFrame *ir_frame) {
     if (_render_bridge == nullptr) {
         return;
     }
-    if (_preview_type == PreivewStreamType::RGBStreamOnly && rgb_frame != nullptr) {
-        _render_bridge->draw_rgb_frame_in_full_screen((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                                      rgb_frame->height, rgb_frame->stride,
-                                                      rgb_frame->slice);
-    } else if (_preview_type == PreivewStreamType::InfraredStreamOnly && ir_frame != nullptr) {
+    if (_preview_type == PreivewStreamType::MainOnly && main_frame != nullptr) {
+        _render_bridge->draw_rgb_frame_in_full_screen((uint8_t *)main_frame->vaddr,
+                                                      main_frame->width,
+                                                      main_frame->height, main_frame->stride,
+                                                      main_frame->slice);
+    } else if (_preview_type == PreivewStreamType::TelephotoOnly && telephoto_frame != nullptr) {
+        _render_bridge->draw_rgb_frame_in_full_screen((uint8_t *)telephoto_frame->vaddr,
+                                                      telephoto_frame->width,
+                                                      telephoto_frame->height,
+                                                      telephoto_frame->stride,
+                                                      telephoto_frame->slice);
+    }
+    else if (_preview_type == PreivewStreamType::InfraredStreamOnly && ir_frame != nullptr) {
         _render_bridge->draw_ir_frame_in_full_screen(
             ir_frame->vaddr, ir_frame->width, ir_frame->height, ir_frame->width, ir_frame->height);
     } else if (_preview_type == PreivewStreamType::SideBySide) {
-        if (rgb_frame != NULL) {
-            _render_bridge->draw_rgb_frame_in_left((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                                   rgb_frame->height, rgb_frame->stride,
-                                                   rgb_frame->slice);
+        if (main_frame != NULL) {
+            _render_bridge->draw_rgb_frame_in_left((uint8_t *)main_frame->vaddr, main_frame->width,
+                                                   main_frame->height, main_frame->stride,
+                                                   main_frame->slice);
         }
         if (ir_frame != NULL) {
             _render_bridge->draw_ir_frame_in_right(ir_frame->vaddr, ir_frame->width,
@@ -693,20 +709,20 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
                                                    ir_frame->height);
         }
     } else if (_preview_type == PreivewStreamType::PIP) {
-        if (rgb_frame != NULL) {
-            _render_bridge->draw_rgb_frame_in_PIP((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                                  rgb_frame->height, rgb_frame->stride,
-                                                  rgb_frame->slice);
+        if (main_frame != NULL) {
+            _render_bridge->draw_rgb_frame_in_PIP((uint8_t *)main_frame->vaddr, main_frame->width,
+                                                  main_frame->height, main_frame->stride,
+                                                  main_frame->slice);
         }
         if (ir_frame != NULL) {
             _render_bridge->draw_ir_frame_in_PIP(ir_frame->vaddr, ir_frame->width, ir_frame->height,
                                                  ir_frame->width, ir_frame->height);
         }
     } else if (_preview_type == PreivewStreamType::Superimpose) {
-        if (rgb_frame != NULL) {
+        if (main_frame != NULL) {
             _render_bridge->draw_rgb_frame_in_superimpose(
-                (uint8_t *)rgb_frame->vaddr, rgb_frame->width, rgb_frame->height, rgb_frame->stride,
-                rgb_frame->slice, _render_mode);
+                (uint8_t *)main_frame->vaddr, main_frame->width, main_frame->height,
+                main_frame->stride, main_frame->slice, _render_mode);
         }
         if (ir_frame != NULL) {
             _render_bridge->draw_ir_frame_in_superimpose(ir_frame->vaddr, ir_frame->width,
@@ -714,10 +730,10 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
                                                          ir_frame->height);
         }
     } else if (_preview_type == PreivewStreamType::Mix) {
-        if (rgb_frame != NULL) {
-            _render_bridge->draw_rgb_frame_in_mix((uint8_t *)rgb_frame->vaddr, rgb_frame->width,
-                                                  rgb_frame->height, rgb_frame->stride,
-                                                  rgb_frame->slice, _render_mode);
+        if (main_frame != NULL) {
+            _render_bridge->draw_rgb_frame_in_mix((uint8_t *)main_frame->vaddr, main_frame->width,
+                                                  main_frame->height, main_frame->stride,
+                                                  main_frame->slice, _render_mode);
         }
         if (ir_frame != NULL) {
             _render_bridge->draw_ir_frame_in_mix(ir_frame->vaddr, ir_frame->width, ir_frame->height,
@@ -727,22 +743,28 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
 }
 
 void CameraLocalClient::deinit() {
-    free_main_camera();
+    free_main_camera(true);
+    free_telephoto_camera(true);
     free_ir_camera();
     free_render_bridge();
     free_storage_manager();
 }
 
 bool CameraLocalClient::init_main_camera() {
+    base::LogDebug() << "call main camera init";
     if (_main_camera != nullptr) {
         return true;
     }
-    _main_camera_handle = dlopen(QCOM_CAMERA_LIBERAY, RTLD_NOW);
+    bool opened_library = false;
     if (_main_camera_handle == NULL) {
-        char const *err_str = dlerror();
-        base::LogError() << "load module " << QCOM_CAMERA_LIBERAY << " failed "
-                         << (err_str != NULL ? err_str : "unknown");
-        return false;
+        _main_camera_handle = dlopen(QCOM_CAMERA_LIBERAY, RTLD_NOW);
+        if (_main_camera_handle == NULL) {
+            char const *err_str = dlerror();
+            base::LogError() << "load module " << QCOM_CAMERA_LIBERAY << " failed "
+                             << (err_str != NULL ? err_str : "unknown");
+            return false;
+        }
+        opened_library = true;
     }
 
     typedef mav_camera::MavCamera *(*create_qcom_camera_fun)();
@@ -750,16 +772,20 @@ bool CameraLocalClient::init_main_camera() {
         (create_qcom_camera_fun)dlsym(_main_camera_handle, "create_qcom_camera");
     if (create_camera_fun == NULL) {
         base::LogError() << "cannot find symbol create_qcom_camera";
-        dlclose(_main_camera_handle);
-        _main_camera_handle = NULL;
+        if (opened_library) {
+            dlclose(_main_camera_handle);
+            _main_camera_handle = NULL;
+        }
         return false;
     }
 
     _main_camera = create_camera_fun();
     if (_main_camera == nullptr) {
         base::LogError() << "cannot create mav camera instance";
-        dlclose(_main_camera_handle);
-        _main_camera_handle = NULL;
+        if (opened_library) {
+            dlclose(_main_camera_handle);
+            _main_camera_handle = NULL;
+        }
         return false;
     }
 
@@ -767,8 +793,12 @@ bool CameraLocalClient::init_main_camera() {
     mav_camera::Result result = _main_camera->prepare();
     if (result != mav_camera::Result::Success) {
         base::LogDebug() << "cannot find main camera";
-        dlclose(_main_camera_handle);
-        _main_camera_handle = NULL;
+        delete _main_camera;
+        _main_camera = nullptr;
+        if (opened_library) {
+            dlclose(_main_camera_handle);
+            _main_camera_handle = NULL;
+        }
         return false;
     }
 
@@ -931,23 +961,258 @@ bool CameraLocalClient::init_main_camera() {
     options.debug_calc_fps = false;
 
     // subscribe capture callback
-    _main_camera->set_capture_callback(RGBCaptureCallback, this);
+    _main_camera->set_capture_callback(MainCameraCallback, this);
     result = _main_camera->open(options);
     if (result == mav_camera::Result::Success) {
         base::LogDebug() << "open qcom camera success";
+    } else {
+        free_main_camera(opened_library);
     }
     return result == mav_camera::Result::Success;
 }
 
-void CameraLocalClient::free_main_camera() {
+bool CameraLocalClient::init_telephoto_camera() {
+    base::LogDebug() << "call telephoto init";
+    if (_telephoto_camera != nullptr) {
+        return true;
+    }
+    bool opened_library = false;
+    if (_telephoto_camera_handle == NULL) {
+        _telephoto_camera_handle = dlopen(QCOM_CAMERA_LIBERAY, RTLD_NOW);
+        if (_telephoto_camera_handle == NULL) {
+            char const *err_str = dlerror();
+            base::LogError() << "load module " << QCOM_CAMERA_LIBERAY << " failed "
+                             << (err_str != NULL ? err_str : "unknown");
+            return false;
+        }
+        opened_library = true;
+    }
+
+    typedef mav_camera::MavCamera *(*create_qcom_camera_fun)();
+    create_qcom_camera_fun create_camera_fun =
+        (create_qcom_camera_fun)dlsym(_telephoto_camera_handle, "create_qcom_camera");
+    if (create_camera_fun == NULL) {
+        base::LogError() << "cannot find symbol create_qcom_camera";
+        if (opened_library) {
+            dlclose(_telephoto_camera_handle);
+            _telephoto_camera_handle = NULL;
+        }
+        return false;
+    }
+
+    _telephoto_camera = create_camera_fun();
+    if (_telephoto_camera == nullptr) {
+        base::LogError() << "cannot create telephoto camera instance";
+        if (opened_library) {
+            dlclose(_telephoto_camera_handle);
+            _telephoto_camera_handle = NULL;
+        }
+        return false;
+    }
+
+    _telephoto_camera->set_log_path("/data/camera/telephoto_cam.log");
+    mav_camera::Result result = _telephoto_camera->prepare();
+    if (result != mav_camera::Result::Success) {
+        base::LogDebug() << "cannot find telephoto camera";
+        delete _telephoto_camera;
+        _telephoto_camera = nullptr;
+        if (opened_library) {
+            dlclose(_telephoto_camera_handle);
+            _telephoto_camera_handle = NULL;
+        }
+        return false;
+    }
+
+    mav_camera::Options options;
+
+    ///< init priority is env > store > default
+    /************** Camera Mode *************/
+    auto camera_mode = mav_camera::Mode::Photo;
+    const char *env_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
+    if (env_camera_mode != NULL) {
+        if (strncmp(env_camera_mode, "0", 1) == 0) {
+            camera_mode = mav_camera::Mode::Photo;
+            base::LogInfo() << "Manually init camera to photo mode";
+        } else if (strncmp(env_camera_mode, "1", 1) == 0) {
+            camera_mode = mav_camera::Mode::Video;
+            base::LogInfo() << "Manually init camera to video mode";
+        }
+    }
+
+    auto store_mode = _camera_param.get_value(kCameraModeName);
+    if (store_mode.empty()) {  // init default param to local storage
+        if (camera_mode == mav_camera::Mode::Photo) {
+            _camera_param.set_value(kCameraModeName, "0");
+        } else {
+            _camera_param.set_value(kCameraModeName, "1");
+        }
+    } else {
+        if (store_mode == "0") {
+            camera_mode = mav_camera::Mode::Photo;
+        } else {
+            camera_mode = mav_camera::Mode::Video;
+        }
+    }
+
+    options.brand = kCameraBrand;
+    options.module = kCameraModule;
+    options.camera_id = 1;
+    options.init_mode = camera_mode;
+    if (options.init_mode == mav_camera::Mode::Photo) {
+        _settings[kCameraModeName] = "0";
+    } else {
+        _settings[kCameraModeName] = "1";
+    }
+
+    /************** Photo Resolution *************/
+    char *env_photo_resoltuion_mode = getenv("MAVCAM_INIT_PHOTO_RESOLUTION");
+    if (env_photo_resoltuion_mode != NULL) {
+        std::string mode(env_photo_resoltuion_mode);
+        if (mode == "0") {
+            options.photo_resolution_mode = mav_camera::PhotoResolutionMode::Full;
+            _settings[kPhotoResolution] = "0";
+        } else if (mode == "1") {
+            options.photo_resolution_mode = mav_camera::PhotoResolutionMode::Quarter;
+            _settings[kPhotoResolution] = "1";
+        }
+    } else {
+        auto store_resolution = _camera_param.get_value(kPhotoResolution);
+        // use default param and store to storage
+        if (store_resolution.empty()) {
+            auto [_, photo_resolution_mode] = _telephoto_camera->get_photo_resolution_mode();
+            options.photo_resolution_mode = photo_resolution_mode;
+            if (photo_resolution_mode == mav_camera::PhotoResolutionMode::Full) {
+                _settings[kPhotoResolution] = "0";
+            } else {
+                _settings[kPhotoResolution] = "1";
+            }
+            // store value
+            _camera_param.set_value(kPhotoResolution, _settings[kPhotoResolution]);
+        } else {
+            _settings[kPhotoResolution] = store_resolution;
+            if (store_resolution == "0") {
+                options.photo_resolution_mode = mav_camera::PhotoResolutionMode::Full;
+            } else {
+                options.photo_resolution_mode = mav_camera::PhotoResolutionMode::Quarter;
+            }
+        }
+    }
+
+    /************** Video Resolution *************/
+    auto store_video_resolution = _camera_param.get_value(kVideoResolution);
+    // use default param and store to storage
+    if (store_video_resolution.empty()) {
+        auto [_, video_resolution_mode] = _telephoto_camera->get_video_resolution_mode();
+        options.video_resolution_mode = video_resolution_mode;
+        switch (video_resolution_mode) {
+            case mav_camera::VideoResolutionMode::UHD60FPS:
+                _settings[kVideoResolution] = "0";
+                break;
+            case mav_camera::VideoResolutionMode::UHD30FPS:
+                _settings[kVideoResolution] = "1";
+                break;
+            case mav_camera::VideoResolutionMode::FHD60FPS:
+                _settings[kVideoResolution] = "2";
+                break;
+            case mav_camera::VideoResolutionMode::FHD30FPS:
+                _settings[kVideoResolution] = "3";
+                break;
+        }
+        // store value
+        _camera_param.set_value(kVideoResolution, _settings[kVideoResolution]);
+    } else {
+        _settings[kVideoResolution] = store_video_resolution;
+        if (store_video_resolution == "0") {
+            options.video_resolution_mode = mav_camera::VideoResolutionMode::UHD60FPS;
+        } else if (store_video_resolution == "1") {
+            options.video_resolution_mode = mav_camera::VideoResolutionMode::UHD30FPS;
+        } else if (store_video_resolution == "2") {
+            options.video_resolution_mode = mav_camera::VideoResolutionMode::FHD60FPS;
+        } else if (store_video_resolution == "3") {
+            options.video_resolution_mode = mav_camera::VideoResolutionMode::FHD30FPS;
+        }
+    }
+
+    /************** Jpeg Quality *************/
+    auto store_jpeg_quality = _camera_param.get_value(kPhotoQuality);
+    if (store_jpeg_quality.empty()) {
+        options.jpeg_quality = mav_camera::JpegQuality::SuperFine;
+        _settings[kPhotoQuality] = "0";  // 0 for jpeg super fine
+        _camera_param.set_value(kPhotoQuality, "0");
+    } else {
+        _settings[kPhotoQuality] = store_jpeg_quality;
+        if (store_jpeg_quality == "0") {
+            options.jpeg_quality = mav_camera::JpegQuality::SuperFine;
+        } else if (store_jpeg_quality == "1") {
+            options.jpeg_quality = mav_camera::JpegQuality::Fine;
+        } else {
+            options.jpeg_quality = mav_camera::JpegQuality::Normal;
+        }
+    }
+
+    /************** Photo format *************/
+    auto store_photo_format = _camera_param.get_value(kPhotoFormat);
+    if (store_photo_format.empty()) {
+        options.photo_format = mav_camera::PhotoFormat::JPEG;
+        _settings[kPhotoFormat] = "0";  // 0 for jpeg
+        _camera_param.set_value(kPhotoFormat, "0");
+    } else {
+        _settings[kPhotoFormat] = store_photo_format;
+        if (store_photo_format == "0") {
+            options.photo_format = mav_camera::PhotoFormat::JPEG;
+        } else if (store_photo_format == "1") {
+            options.photo_format = mav_camera::PhotoFormat::DNG;
+        } else {
+            options.photo_format = mav_camera::PhotoFormat::JPEG_DNG;
+        }
+    }
+
+    /************** take photo interval *************/
+    auto take_photo_interval = _camera_param.get_value(kTakePhotoInterval);
+    if (take_photo_interval.empty()) {
+        take_photo_interval = "1800";  // default take photo interval is 1800ms
+        _camera_param.set_value(kTakePhotoInterval, take_photo_interval);
+        options.photo_min_interval_in_millisecond = std::stoi(take_photo_interval);
+    } else {
+        options.photo_min_interval_in_millisecond = std::stoi(take_photo_interval);
+    }
+
+    // other param
+    options.preview_resolution_mode = mav_camera::PreviewResolutionMode::FHD;
+    options.debug_calc_fps = false;
+
+    // subscribe capture callback
+    _telephoto_camera->set_capture_callback(TelephotoRGBCaptureCallback, this);
+    result = _telephoto_camera->open(options);
+    if (result == mav_camera::Result::Success) {
+        base::LogDebug() << "open telephoto camera success";
+    } else {
+        free_telephoto_camera(opened_library);
+    }
+    return result == mav_camera::Result::Success;
+}
+
+void CameraLocalClient::free_main_camera(bool unload_library) {
     if (_main_camera != nullptr) {
         _main_camera->close();
         delete _main_camera;
         _main_camera = nullptr;
     }
-    if (_main_camera_handle != NULL) {
+    if (unload_library && _main_camera_handle != NULL) {
         dlclose(_main_camera_handle);
         _main_camera_handle = NULL;
+    }
+}
+
+void CameraLocalClient::free_telephoto_camera(bool unload_library) {
+    if (_telephoto_camera != nullptr) {
+        _telephoto_camera->close();
+        delete _telephoto_camera;
+        _telephoto_camera = nullptr;
+    }
+    if (unload_library && _telephoto_camera_handle != NULL) {
+        dlclose(_telephoto_camera_handle);
+        _telephoto_camera_handle = NULL;
     }
 }
 
@@ -1009,7 +1274,7 @@ std::string CameraLocalClient::init_camera_display_mode() {
     auto store_display_mode = _camera_param.get_value(kCameraDisplayModeName);
     if (store_display_mode.empty()) {
         // default display mode is RGB
-        _preview_type = mavcam::PreivewStreamType::RGBStreamOnly;
+        _preview_type = mavcam::PreivewStreamType::MainOnly;
         std::string string_type = std::to_string(static_cast<int>(_preview_type));
         _camera_param.set_value(kCameraDisplayModeName, string_type);
         return string_type;
@@ -1020,7 +1285,21 @@ std::string CameraLocalClient::init_camera_display_mode() {
 }
 
 bool CameraLocalClient::set_camera_display_mode(std::string mode) {
-    _preview_type = static_cast<PreivewStreamType>(std::stoi(mode));
+    auto temp_preview_type = static_cast<PreivewStreamType>(std::stoi(mode));
+    if (_preview_type == temp_preview_type) {
+        return true;
+    }
+    // switch to telephoto mode
+    if (temp_preview_type == PreivewStreamType::TelephotoOnly) {
+        free_main_camera();
+        init_telephoto_camera();
+    }
+    else if (_preview_type == PreivewStreamType::TelephotoOnly) {
+        base::LogDebug() << "switch back to main mode";
+        free_telephoto_camera();
+        init_main_camera();
+    }
+    _preview_type = temp_preview_type;
     return true;
 }
 

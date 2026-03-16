@@ -54,7 +54,9 @@ public:
     /**
      * @brief capture callback implement for display
      */
-    void capture_callback(mav_camera::MAVFrame *rgb_frame, ir_camera::IRFrame *ir_frame);
+    void capture_callback(mav_camera::MAVFrame *main_frame,
+                          mav_camera::MAVFrame *telephoto_frame,
+                          ir_camera::IRFrame *ir_frame);
 private:
     /**
      * @brief deinit instance
@@ -65,9 +67,17 @@ private:
      */
     bool init_main_camera();
     /**
+     * @brief init telephoto camera
+     */
+    bool init_telephoto_camera();
+    /**
      * @brief free main camera
      */
-    void free_main_camera();
+    void free_main_camera(bool unload_library = false);
+    /**
+     * @brief free telephoto camera
+     */
+    void free_telephoto_camera(bool unload_library = false);
     /**
      * @brief build setting with name and value
      */
@@ -261,6 +271,9 @@ private:
 private:
     void *_main_camera_handle{NULL};
     mav_camera::MavCamera *_main_camera{nullptr};
+private:
+    void *_telephoto_camera_handle{NULL};
+    mav_camera::MavCamera *_telephoto_camera{nullptr};
 private:
     void *_ir_camera_handle{NULL};
     ir_camera::IRCamera *_ir_camera{nullptr};

@@ -8,7 +8,8 @@
 namespace mavcam {
 
 enum class PreivewStreamType {
-    RGBStreamOnly,       ///< only show RGB stream.
+    MainOnly,       ///< only show main stream.
+    TelephotoOnly,  ///< only show telephoto stream.
     InfraredStreamOnly,  ///< only show Infrared stream.
     SideBySide,
     PIP,  ///< picture in picture
