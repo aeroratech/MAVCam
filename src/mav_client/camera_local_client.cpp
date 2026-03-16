@@ -397,8 +397,8 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     }
     if (result == mav_camera::Result::Success) {
         information.vendor_name = "Aeroratech";
-        information.model_name = "D64TR";
-        information.firmware_version = "0.6.0";
+        information.model_name = "Q50MZ";
+        information.firmware_version = "0.1.0";
         information.focal_length_mm = in_info.focal_length_mm;
         information.horizontal_sensor_size_mm = in_info.horizontal_sensor_size_mm;
         information.vertical_sensor_size_mm = in_info.vertical_sensor_size_mm;
@@ -406,8 +406,8 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 16;
-        information.definition_file_uri = "mftp://definition/D64TR.xml";
+        information.definition_file_version = 1;
+        information.definition_file_uri = "mftp://definition/Q50MZ.xml";
     } else {
         information.vendor_name = "Unknown";
         information.model_name = "Unknown";
@@ -727,6 +727,7 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
 }
 
 void CameraLocalClient::deinit() {
+    free_mav_camera();
     free_ir_camera();
     free_render_bridge();
     free_storage_manager();
@@ -804,6 +805,7 @@ bool CameraLocalClient::init_mav_camera() {
 
     options.brand = kCameraBrand;
     options.module = kCameraModule;
+    options.camera_id = 0;
     options.init_mode = camera_mode;
     if (options.init_mode == mav_camera::Mode::Photo) {
         _settings[kCameraModeName] = "0";
