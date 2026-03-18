@@ -8,9 +8,11 @@
 #include <future>
 #include <iomanip>  // for std::setprecision
 #include <regex>
+#include <sstream>
 #include <thread>
 
 #include "base/log.h"
+#include "laser_sensor.h"
 #include "led_control/led_control.h"
 
 namespace mavcam {
@@ -36,6 +38,7 @@ const std::string kAELockName = "CAM_AE_LOCK";
 
 const std::string kIrCamPalette = "IRCAM_PALETTE";
 const std::string kIrCamFFC = "IRCAM_FFC";
+const std::string kLaserSerialPort = "/dev/ttyHS1";
 
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 
@@ -674,6 +677,10 @@ bool CameraLocalClient::init() {
     _settings[kIrCamPalette] = init_ir_palette();
     _settings[kIrCamFFC] = "0";
 
+    if (!init_laser_sensor()) {
+        return false;
+    }
+
     base::LogDebug() << "Init settings :";
     for (const auto &setting : _settings) {
         base::LogDebug() << "  - " << setting.first << " : " << setting.second;
@@ -741,14 +748,76 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
                                                  ir_frame->width, ir_frame->height);
         }
     }
+
+    const int laser_distance_raw = _laser_distance_raw.load();
+    std::vector<std::tuple<int32_t, int32_t, std::string>> texts;
+    if (laser_distance_raw >= 0) {
+        std::ostringstream laser_text;
+        laser_text << std::fixed << std::setprecision(1)
+                   << "Distance: " << (laser_distance_raw / 10.0f) << " m";
+        texts.emplace_back(20, 20, laser_text.str());
+    }
+    _render_bridge->draw_osd_texts(texts);
 }
 
 void CameraLocalClient::deinit() {
+    free_laser_sensor();
     free_main_camera(true);
     free_telephoto_camera(true);
     free_ir_camera();
     free_render_bridge();
     free_storage_manager();
+}
+
+bool CameraLocalClient::init_laser_sensor() {
+    if (_laser_sensor != nullptr) {
+        return true;
+    }
+
+    _laser_sensor = laser::create_laser_instance(laser::LaserType::InfiRay, kLaserSerialPort);
+    if (!_laser_sensor) {
+        base::LogError() << "Failed to create laser sensor on " << kLaserSerialPort;
+        return false;
+    }
+
+    if (!_laser_sensor->init(kLaserSerialPort)) {
+        base::LogError() << "Failed to initialize laser sensor on " << kLaserSerialPort;
+        _laser_sensor.reset();
+        return false;
+    }
+
+    _laser_running = true;
+    _laser_thread = std::thread(&CameraLocalClient::laser_read_loop, this);
+    base::LogInfo() << "Laser sensor polling started on " << kLaserSerialPort;
+    return true;
+}
+
+void CameraLocalClient::free_laser_sensor() {
+    _laser_running = false;
+    _laser_distance_raw = -1;
+    if (_laser_sensor != nullptr) {
+        _laser_sensor->stop();
+    }
+    if (_laser_thread.joinable()) {
+        _laser_thread.join();
+    }
+    _laser_sensor.reset();
+}
+
+void CameraLocalClient::laser_read_loop() {
+    while (_laser_running) {
+        laser::Distance distance;
+        if (_laser_sensor != nullptr && _laser_sensor->read_distance(distance)) {
+            if (distance.status == 1) {
+                _laser_distance_raw = static_cast<int>(distance.distance);
+            } else {
+                _laser_distance_raw = -1;
+                base::LogWarn() << "Laser measurement failed (status: 0x" << std::hex
+                                << static_cast<int>(distance.status) << std::dec << ")";
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 }
 
 bool CameraLocalClient::init_main_camera() {

@@ -2,8 +2,10 @@
 
 #include <atomic>
 #include <chrono>
+#include <memory>
 #include <mutex>
 #include <optional>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -13,6 +15,10 @@
 #include "mav_camera.h"
 #include "render_bridge.h"
 #include "storage_manager.h"
+
+namespace laser {
+class LaserSensor;
+}
 
 namespace mavcam {
 
@@ -241,6 +247,18 @@ private:
      */
     void free_storage_manager();
     /**
+     * @brief init laser sensor and start polling thread
+     */
+    bool init_laser_sensor();
+    /**
+     * @brief stop laser polling thread and release sensor
+     */
+    void free_laser_sensor();
+    /**
+     * @brief laser polling loop
+     */
+    void laser_read_loop();
+    /**
      * @brief check sdcard status for led control
      */
     void check_sdcard_status();
@@ -284,6 +302,11 @@ private:
 private:
     CameraParam _camera_param;
     std::optional<bool> _sdcard_valid;  // no initial value
+private:
+    std::unique_ptr<laser::LaserSensor> _laser_sensor;
+    std::thread _laser_thread;
+    std::atomic<bool> _laser_running{false};
+    std::atomic<int> _laser_distance_raw{-1};
 };
 
 }  // namespace mavcam

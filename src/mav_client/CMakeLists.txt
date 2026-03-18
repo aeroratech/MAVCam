@@ -43,6 +43,7 @@ target_link_libraries(${EXECUTE_NAME}
     MAVSDK::mavsdk
     Threads::Threads
     dl
+    laser_sdk
 )
 
 if (BUILD_SERVER)
