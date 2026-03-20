@@ -421,7 +421,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 1;
+        information.definition_file_version = 2;
         information.definition_file_uri = "mftp://definition/Q50MZ.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -755,7 +755,7 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
         std::ostringstream laser_text;
         laser_text << std::fixed << std::setprecision(1)
                    << "Distance: " << (laser_distance_raw / 10.0f) << " m";
-        texts.emplace_back(20, 20, laser_text.str());
+        texts.emplace_back(60, 20, laser_text.str());
     }
     _render_bridge->draw_osd_texts(texts);
 }

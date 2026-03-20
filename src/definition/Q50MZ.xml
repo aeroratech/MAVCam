@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="1">
+    <definition version="2">
         <model>Q50MZ</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -172,9 +172,10 @@
                 <option name="1/8000" value="0.000125" />
             </options>
         </parameter>
-        <parameter name="CAM_ISO" type="int32" default="125">
+        <parameter name="CAM_ISO" type="int32" default="100">
             <description>ISO</description>
             <options>
+                <option name="100" value="100" />
                 <option name="125" value="125" />
                 <option name="160" value="160" />
                 <option name="200" value="200" />
