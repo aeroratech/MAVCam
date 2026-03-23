@@ -60,8 +60,7 @@ public:
     /**
      * @brief capture callback implement for display
      */
-    void capture_callback(mav_camera::MAVFrame *main_frame,
-                          mav_camera::MAVFrame *telephoto_frame,
+    void capture_callback(mav_camera::MAVFrame *main_frame, mav_camera::MAVFrame *telephoto_frame,
                           ir_camera::IRFrame *ir_frame);
 private:
     /**
@@ -255,9 +254,17 @@ private:
      */
     void free_laser_sensor();
     /**
+     * @brief create backend thread for sensor polling
+     */
+    bool init_backend_thread();
+    /**
+     * @brief release backend thread for sensor polling
+     */
+    void free_backend_thread();
+    /**
      * @brief laser polling loop
      */
-    void laser_read_loop();
+    void backend_read_loop();
     /**
      * @brief check sdcard status for led control
      */
@@ -304,9 +311,12 @@ private:
     std::optional<bool> _sdcard_valid;  // no initial value
 private:
     std::unique_ptr<laser::LaserSensor> _laser_sensor;
-    std::thread _laser_thread;
-    std::atomic<bool> _laser_running{false};
     std::atomic<int> _laser_distance_raw{-1};
+private:
+    std::thread _backend_thread;
+    std::atomic<bool> _backend_running{false};
+    std::atomic<int32_t> _current_iso{-1};
+    std::atomic<float> _current_shuter_speed{-1.0f};
 };
 
 }  // namespace mavcam

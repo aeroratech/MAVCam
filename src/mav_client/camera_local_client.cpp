@@ -680,6 +680,10 @@ bool CameraLocalClient::init() {
     if (!init_laser_sensor()) {
         return false;
     }
+    if (!init_backend_thread()) {
+        free_laser_sensor();
+        return false;
+    }
 
     base::LogDebug() << "Init settings :";
     for (const auto &setting : _settings) {
@@ -749,19 +753,30 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
         }
     }
 
+    ///< draw osd info
     const int laser_distance_raw = _laser_distance_raw.load();
+    const int32_t current_iso = _current_iso.load();
+    const float current_shutter_speed = _current_shuter_speed.load();
     std::vector<std::tuple<int32_t, int32_t, std::string>> texts;
     if (laser_distance_raw >= 0) {
         std::ostringstream laser_text;
         laser_text << std::fixed << std::setprecision(1)
                    << "Distance: " << (laser_distance_raw / 10.0f) << " m";
-        texts.emplace_back(60, 20, laser_text.str());
+        texts.emplace_back(80, 420, laser_text.str());
+    }
+    if (current_iso >= 0) {
+        texts.emplace_back(80, 450, "ISO: " + std::to_string(current_iso));
+    }
+    if (current_shutter_speed >= 0) {
+        texts.emplace_back(80, 480,
+                           "ShutterSpeed: " + std::to_string(current_shutter_speed) + " s");
     }
     _render_bridge->draw_osd_texts(texts);
 }
 
 void CameraLocalClient::deinit() {
     free_laser_sensor();
+    free_backend_thread();
     free_main_camera(true);
     free_telephoto_camera(true);
     free_ir_camera();
@@ -786,26 +801,38 @@ bool CameraLocalClient::init_laser_sensor() {
         return false;
     }
 
-    _laser_running = true;
-    _laser_thread = std::thread(&CameraLocalClient::laser_read_loop, this);
-    base::LogInfo() << "Laser sensor polling started on " << kLaserSerialPort;
+    base::LogInfo() << "Laser sensor initialized on " << kLaserSerialPort;
     return true;
 }
 
 void CameraLocalClient::free_laser_sensor() {
-    _laser_running = false;
     _laser_distance_raw = -1;
     if (_laser_sensor != nullptr) {
         _laser_sensor->stop();
     }
-    if (_laser_thread.joinable()) {
-        _laser_thread.join();
-    }
     _laser_sensor.reset();
 }
 
-void CameraLocalClient::laser_read_loop() {
-    while (_laser_running) {
+bool CameraLocalClient::init_backend_thread() {
+    if (_backend_thread.joinable()) {
+        return true;
+    }
+
+    _backend_running = true;
+    _backend_thread = std::thread(&CameraLocalClient::backend_read_loop, this);
+    return true;
+}
+
+void CameraLocalClient::free_backend_thread() {
+    _backend_running = false;
+    if (_backend_thread.joinable()) {
+        _backend_thread.join();
+    }
+}
+
+void CameraLocalClient::backend_read_loop() {
+    auto delay_time = std::chrono::milliseconds(200);
+    while (_backend_running) {
         laser::Distance distance;
         if (_laser_sensor != nullptr && _laser_sensor->read_distance(distance)) {
             if (distance.status == 1) {
@@ -816,7 +843,24 @@ void CameraLocalClient::laser_read_loop() {
                                 << static_cast<int>(distance.status) << std::dec << ")";
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        _laser_distance_raw = 32;  // sample code
+
+        auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
+        if (rgb_camera == nullptr) {
+            std::this_thread::sleep_for(delay_time);
+            continue;
+        }
+        auto [result1, iso] = rgb_camera->get_iso();
+        if (result1 == mav_camera::Result::Success) {
+            _current_iso = iso;
+        }
+        auto [result2, shutter_speed] = rgb_camera->get_shutter_speed();
+        if (result2 == mav_camera::Result::Success) {
+            auto temp_value = std::stof(shutter_speed);
+            float factor = 1e6f;
+            _current_shuter_speed = std::round(temp_value * factor) / factor;
+        }
+        std::this_thread::sleep_for(delay_time);
     }
 }
 
