@@ -831,7 +831,7 @@ void CameraLocalClient::free_backend_thread() {
 }
 
 void CameraLocalClient::backend_read_loop() {
-    auto delay_time = std::chrono::milliseconds(200);
+    auto delay_time = std::chrono::milliseconds(100);
     while (_backend_running) {
         laser::Distance distance;
         if (_laser_sensor != nullptr && _laser_sensor->read_distance(distance)) {
@@ -843,7 +843,7 @@ void CameraLocalClient::backend_read_loop() {
                                 << static_cast<int>(distance.status) << std::dec << ")";
             }
         }
-        _laser_distance_raw = 32;  // sample code
+        // _laser_distance_raw = 32;  // sample code
 
         auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
         if (rgb_camera == nullptr) {
