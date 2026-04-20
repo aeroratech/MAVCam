@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="2">
+    <definition version="3">
         <model>Q50MZ</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -255,8 +255,8 @@
             </options>
         </parameter>
         <!-- IR Camera Param -->
-        <parameter name="IRCAM_PALETTE" type="int32" default="0">
-            <description>Infrared Camera Palette</description>
+        <parameter name="IR_PALETTE" type="int32" default="0">
+            <description>IR Palette</description>
             <options>
                 <option name="WHITEHOT" value="0" />
                 <option name="BLACKHOT" value="1" />
@@ -270,8 +270,15 @@
                 <option name="HOTTEST" value="9" />
             </options>
         </parameter>
-        <parameter name="IRCAM_FFC" type="int32" default="0">
-            <description>Infrared Camera FFC</description>
+        <parameter name="IR_FFC_MODE" type="int32" default="0">
+            <description>IR FFC Mode</description>
+            <options>
+                <option name="Manual" value="0" />
+                <option name="Auto" value="1" />
+            </options>
+        </parameter>
+        <parameter name="IR_FFC" type="int32" default="0">
+            <description>IR FFC</description>
             <options>
                 <option name="NOTHING" value="0" />
                 <option name="EXECUTE" value="1" />

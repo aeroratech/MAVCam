@@ -36,8 +36,9 @@ const std::string kMeteringModeName = "CAM_METER";
 const std::string kSharpnessName = "CAM_SHARPNESS";
 const std::string kAELockName = "CAM_AE_LOCK";
 
-const std::string kIrCamPalette = "IRCAM_PALETTE";
-const std::string kIrCamFFC = "IRCAM_FFC";
+const std::string kIrCamPalette = "IR_PALETTE";
+const std::string kIrCamFFCMode = "IR_FFC_MODE";
+const std::string kIrCamFFC = "IR_FFC";
 const std::string kLaserSerialPort = "/dev/ttyHS1";
 
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
@@ -421,7 +422,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 2;
+        information.definition_file_version = 3;
         information.definition_file_uri = "mftp://definition/Q50MZ.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -459,11 +460,11 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_video_stream_info(
     normal_video_stream.stream_id = 1;
 
     normal_video_stream.settings.frame_rate_hz = 30.0;
-    normal_video_stream.settings.horizontal_resolution_pix = 1280;
-    normal_video_stream.settings.vertical_resolution_pix = 720;
-    normal_video_stream.settings.bit_rate_b_s = 1 * 1024 * 1024;
+    normal_video_stream.settings.horizontal_resolution_pix = 1920;
+    normal_video_stream.settings.vertical_resolution_pix = 1080;
+    normal_video_stream.settings.bit_rate_b_s = 10 * 1024 * 1024;
     normal_video_stream.settings.rotation_deg = 0;
-    normal_video_stream.settings.uri = "rtsp://192.168.251.1/live";
+    normal_video_stream.settings.uri = "rtsp://192.168.199.108/live";
     normal_video_stream.settings.horizontal_fov_deg = 0;
     normal_video_stream.status =
         mavsdk::CameraServer::VideoStreamInfo::VideoStreamStatus::InProgress;
@@ -614,6 +615,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_ae_lock(setting.option.option_id);
     } else if (setting.setting_id == kIrCamPalette) {
         set_success = set_ir_palette(setting.option.option_id);
+    } else if (setting.setting_id == kIrCamFFCMode) {
+        set_success = set_ir_ffc_mode(setting.option.option_id);
     } else if (setting.setting_id == kIrCamFFC) {
         set_success = set_ir_FFC(setting.option.option_id);
     } else {
@@ -675,6 +678,7 @@ bool CameraLocalClient::init() {
     // NOTE (thomas): don't check ir camera status, because camera can init without ir camera
     init_ir_camera();
     _settings[kIrCamPalette] = init_ir_palette();
+    _settings[kIrCamFFCMode] = init_ir_ffc_mode();
     _settings[kIrCamFFC] = "0";
 
     if (!init_laser_sensor()) {
@@ -1835,6 +1839,33 @@ bool CameraLocalClient::set_ir_palette(std::string color_mode) {
     ir_camera::ColorMode convert_mode = (ir_camera::ColorMode)std::stoi(color_mode);
     if (_ir_camera != nullptr) {
         return _ir_camera->set_color_mode(convert_mode);
+    }
+    return false;
+}
+
+std::string CameraLocalClient::init_ir_ffc_mode() {
+    auto store_ir_ffc_mode = _camera_param.get_value(kIrCamFFCMode);
+    if (store_ir_ffc_mode.empty()) {
+        std::string ffc_mode;
+        if (_ir_camera != nullptr) {
+            ir_camera::FFCMode current_mode = _ir_camera->get_ffc_mode();
+            base::LogDebug() << "Current ir FFC mode is " << static_cast<int>(current_mode);
+            ffc_mode = std::to_string(static_cast<int>(current_mode));
+        } else {
+            ffc_mode = "0";
+        }
+        _camera_param.set_value(kIrCamFFCMode, ffc_mode);
+        return ffc_mode;
+    } else {
+        set_ir_ffc_mode(store_ir_ffc_mode);
+        return store_ir_ffc_mode;
+    }
+}
+
+bool CameraLocalClient::set_ir_ffc_mode(std::string ffc_mode) {
+    ir_camera::FFCMode convert_mode = (ir_camera::FFCMode)std::stoi(ffc_mode);
+    if (_ir_camera != nullptr) {
+        return _ir_camera->set_ffc_mode(convert_mode);
     }
     return false;
 }
