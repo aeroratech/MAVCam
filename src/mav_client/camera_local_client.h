@@ -16,10 +16,6 @@
 #include "render_bridge.h"
 #include "storage_manager.h"
 
-namespace laser {
-class LaserSensor;
-}
-
 namespace mavcam {
 
 class CameraLocalClient : public CameraClient {
@@ -256,11 +252,11 @@ private:
      */
     void free_storage_manager();
     /**
-     * @brief init laser sensor and start polling thread
+     * @brief init laser shared memory and start polling thread
      */
     bool init_laser_sensor();
     /**
-     * @brief stop laser polling thread and release sensor
+     * @brief stop laser polling thread and release shared memory
      */
     void free_laser_sensor();
     /**
@@ -320,7 +316,8 @@ private:
     CameraParam _camera_param;
     std::optional<bool> _sdcard_valid;  // no initial value
 private:
-    std::unique_ptr<laser::LaserSensor> _laser_sensor;
+    int _laser_shm_fd{-1};
+    void *_laser_shm_data{nullptr};
     std::atomic<int> _laser_distance_raw{-1};
 private:
     std::thread _backend_thread;

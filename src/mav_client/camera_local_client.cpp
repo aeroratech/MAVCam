@@ -1,10 +1,16 @@
 #include "camera_local_client.h"
 
 #include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <chrono>
+#include <cstdint>
 #include <future>
 #include <iomanip>  // for std::setprecision
 #include <regex>
@@ -12,7 +18,6 @@
 #include <thread>
 
 #include "base/log.h"
-#include "laser_sensor.h"
 #include "led_control/led_control.h"
 
 namespace mavcam {
@@ -39,7 +44,18 @@ const std::string kAELockName = "CAM_AE_LOCK";
 const std::string kIrCamPalette = "IR_PALETTE";
 const std::string kIrCamFFCMode = "IR_FFC_MODE";
 const std::string kIrCamFFC = "IR_FFC";
-const std::string kLaserSerialPort = "/dev/ttyHS1";
+
+namespace {
+
+constexpr const char *kLaserShmName = "/laser_shm";
+
+struct LaserSharedMemory {
+    std::uint32_t sequence{0};
+    std::uint16_t distance_mm{0};
+    std::uint8_t sensor_status{0};
+};
+
+}  // namespace
 
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 
@@ -681,13 +697,8 @@ bool CameraLocalClient::init() {
     _settings[kIrCamFFCMode] = init_ir_ffc_mode();
     _settings[kIrCamFFC] = "0";
 
-    if (!init_laser_sensor()) {
-        return false;
-    }
-    if (!init_backend_thread()) {
-        free_laser_sensor();
-        return false;
-    }
+    init_laser_sensor();
+    init_backend_thread();
 
     base::LogDebug() << "Init settings :";
     for (const auto &setting : _settings) {
@@ -789,32 +800,42 @@ void CameraLocalClient::deinit() {
 }
 
 bool CameraLocalClient::init_laser_sensor() {
-    if (_laser_sensor != nullptr) {
+    if (_laser_shm_data != nullptr) {
         return true;
     }
 
-    _laser_sensor = laser::create_laser_instance(laser::LaserType::InfiRay, kLaserSerialPort);
-    if (!_laser_sensor) {
-        base::LogError() << "Failed to create laser sensor on " << kLaserSerialPort;
+    _laser_shm_fd = ::shm_open(kLaserShmName, O_RDONLY, 0);
+    if (_laser_shm_fd < 0) {
+        base::LogError() << "Failed to open laser shared memory " << kLaserShmName << ": "
+                         << strerror(errno);
         return false;
     }
 
-    if (!_laser_sensor->init(kLaserSerialPort)) {
-        base::LogError() << "Failed to initialize laser sensor on " << kLaserSerialPort;
-        _laser_sensor.reset();
+    _laser_shm_data = ::mmap(nullptr, sizeof(LaserSharedMemory), PROT_READ, MAP_SHARED,
+                             _laser_shm_fd, 0);
+    if (_laser_shm_data == MAP_FAILED) {
+        base::LogError() << "Failed to map laser shared memory " << kLaserShmName << ": "
+                         << strerror(errno);
+        _laser_shm_data = nullptr;
+        ::close(_laser_shm_fd);
+        _laser_shm_fd = -1;
         return false;
     }
 
-    base::LogInfo() << "Laser sensor initialized on " << kLaserSerialPort;
+    base::LogInfo() << "Laser shared memory initialized from " << kLaserShmName;
     return true;
 }
 
 void CameraLocalClient::free_laser_sensor() {
     _laser_distance_raw = -1;
-    if (_laser_sensor != nullptr) {
-        _laser_sensor->stop();
+    if (_laser_shm_data != nullptr) {
+        ::munmap(_laser_shm_data, sizeof(LaserSharedMemory));
+        _laser_shm_data = nullptr;
     }
-    _laser_sensor.reset();
+    if (_laser_shm_fd >= 0) {
+        ::close(_laser_shm_fd);
+        _laser_shm_fd = -1;
+    }
 }
 
 bool CameraLocalClient::init_backend_thread() {
@@ -836,18 +857,31 @@ void CameraLocalClient::free_backend_thread() {
 
 void CameraLocalClient::backend_read_loop() {
     auto delay_time = std::chrono::milliseconds(100);
+    auto next_laser_retry_time = std::chrono::steady_clock::now();
     while (_backend_running) {
-        laser::Distance distance;
-        if (_laser_sensor != nullptr && _laser_sensor->read_distance(distance)) {
-            if (distance.status == 1) {
-                _laser_distance_raw = static_cast<int>(distance.distance);
-            } else {
-                _laser_distance_raw = -1;
-                base::LogWarn() << "Laser measurement failed (status: 0x" << std::hex
-                                << static_cast<int>(distance.status) << std::dec << ")";
+        if (_laser_shm_data == nullptr &&
+            std::chrono::steady_clock::now() >= next_laser_retry_time) {
+            init_laser_sensor();
+            next_laser_retry_time = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        }
+
+        if (_laser_shm_data != nullptr) {
+            const auto *shared = static_cast<const LaserSharedMemory *>(_laser_shm_data);
+            LaserSharedMemory snapshot{};
+            std::uint32_t seq_begin = 0;
+            std::uint32_t seq_end = 0;
+
+            do {
+                seq_begin = shared->sequence;
+                snapshot = *shared;
+                seq_end = shared->sequence;
+            } while ((seq_begin != seq_end) || ((seq_begin & 1U) != 0U));
+
+            if (snapshot.sensor_status == 1) {
+                _laser_distance_raw = static_cast<int>(snapshot.distance_mm);
+                base::LogDebug() << "distance is " << _laser_distance_raw;
             }
         }
-        // _laser_distance_raw = 32;  // sample code
 
         auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
         if (rgb_camera == nullptr) {
