@@ -15,6 +15,7 @@
 #include "mav_camera.h"
 #include "render_bridge.h"
 #include "storage_manager.h"
+#include "tracking_server.h"
 
 namespace mavcam {
 
@@ -58,6 +59,7 @@ public:
      */
     void capture_callback(mav_camera::MAVFrame *main_frame, mav_camera::MAVFrame *telephoto_frame,
                           ir_camera::IRFrame *ir_frame);
+    void tracking_callback(const TrackingFrame &frame);
 private:
     /**
      * @brief deinit instance
@@ -236,6 +238,14 @@ private:
      */
     bool set_ir_FFC(std::string ignore);
     /**
+     * @brief init tracking enable state
+     */
+    std::string init_tracking_mode();
+    /**
+     * @brief enable or disable tracking service
+     */
+    bool set_tracking_mode(std::string mode);
+    /**
      * @brief init render bridge
      */
     bool init_render_bridge();
@@ -315,6 +325,10 @@ private:
 private:
     CameraParam _camera_param;
     std::optional<bool> _sdcard_valid;  // no initial value
+    TrackingServer _tracking_server;
+    mutable std::mutex _tracking_frame_mutex;
+    TrackingFrame _tracking_frame;
+    bool _has_tracking_frame{false};
 private:
     int _laser_shm_fd{-1};
     void *_laser_shm_data{nullptr};

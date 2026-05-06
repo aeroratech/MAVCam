@@ -11,11 +11,13 @@
 
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <future>
 #include <iomanip>  // for std::setprecision
 #include <regex>
 #include <sstream>
 #include <thread>
+#include <utility>
 
 #include "base/log.h"
 #include "led_control/led_control.h"
@@ -44,10 +46,13 @@ const std::string kAELockName = "CAM_AE_LOCK";
 const std::string kIrCamPalette = "IR_PALETTE";
 const std::string kIrCamFFCMode = "IR_FFC_MODE";
 const std::string kIrCamFFC = "IR_FFC";
+const std::string kTrackingMode = "CAM_TRACKING";
 
 namespace {
 
 constexpr const char *kLaserShmName = "/laser_shm";
+constexpr const char *kTrackingAddress = "127.0.0.1";
+constexpr int kTrackingPort = 14600;
 
 struct LaserSharedMemory {
     std::uint32_t sequence{0};
@@ -98,6 +103,7 @@ void IRCaptureCallback(ir_camera::IRFrame *frame, void *context) {
 CameraLocalClient::CameraLocalClient() {
     _image_count = 0;
     _is_recording_video = false;
+    _tracking_server.set_callback([this](const TrackingFrame &frame) { tracking_callback(frame); });
 }
 
 CameraLocalClient::~CameraLocalClient() {
@@ -381,6 +387,9 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
                 _settings[kSharpnessName] = "0";
                 _camera_param.set_value(kSharpnessName, _settings[kSharpnessName]);
                 _settings[kAELockName] = "0";  // ae lock don't store to param
+                _settings[kTrackingMode] = "0";
+                _camera_param.set_value(kTrackingMode, _settings[kTrackingMode]);
+                set_tracking_mode(_settings[kTrackingMode]);
 
                 init_render_mode();
 
@@ -438,7 +447,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 3;
+        information.definition_file_version = 4;
         information.definition_file_uri = "mftp://definition/Q50MZ.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -635,6 +644,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_ir_ffc_mode(setting.option.option_id);
     } else if (setting.setting_id == kIrCamFFC) {
         set_success = set_ir_FFC(setting.option.option_id);
+    } else if (setting.setting_id == kTrackingMode) {
+        set_success = set_tracking_mode(setting.option.option_id);
     } else {
         base::LogError() << "Not implement setting" << setting.setting_id;
         set_success = false;
@@ -643,7 +654,9 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     // when set success update the settings value and store value
     if (set_success) {
         _settings[setting.setting_id] = setting.option.option_id;
-        _camera_param.set_value(setting.setting_id, setting.option.option_id);
+        if (setting.setting_id != kTrackingMode) {
+            _camera_param.set_value(setting.setting_id, setting.option.option_id);
+        }
 
         if (need_refresh_render_mode) {
             init_render_mode();
@@ -696,6 +709,7 @@ bool CameraLocalClient::init() {
     _settings[kIrCamPalette] = init_ir_palette();
     _settings[kIrCamFFCMode] = init_ir_ffc_mode();
     _settings[kIrCamFFC] = "0";
+    _settings[kTrackingMode] = init_tracking_mode();
 
     init_laser_sensor();
     init_backend_thread();
@@ -768,6 +782,31 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
         }
     }
 
+    if (_settings[kTrackingMode] == "1") {
+        TrackingFrame tracking_frame;
+        bool has_tracking_frame = false;
+        {
+            std::lock_guard<std::mutex> lock(_tracking_frame_mutex);
+            tracking_frame = _tracking_frame;
+            has_tracking_frame = _has_tracking_frame;
+        }
+
+        std::vector<BoundingBox> boxes;
+        if (has_tracking_frame) {
+            boxes.reserve(tracking_frame.objects.size());
+            for (const auto &object : tracking_frame.objects) {
+                BoundingBox box;
+                box.x = object.x;
+                box.y = object.y;
+                box.width = object.width;
+                box.height = object.height;
+                box.label = object.name;
+                boxes.emplace_back(std::move(box));
+            }
+        }
+        _render_bridge->draw_bounding_boxes(boxes);
+    }
+
     ///< draw osd info
     const int laser_distance_raw = _laser_distance_raw.load();
     const int32_t current_iso = _current_iso.load();
@@ -789,7 +828,14 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
     _render_bridge->draw_osd_texts(texts);
 }
 
+void CameraLocalClient::tracking_callback(const TrackingFrame &frame) {
+    std::lock_guard<std::mutex> lock(_tracking_frame_mutex);
+    _tracking_frame = frame;
+    _has_tracking_frame = true;
+}
+
 void CameraLocalClient::deinit() {
+    set_tracking_mode("0");
     free_laser_sensor();
     free_backend_thread();
     free_main_camera(true);
@@ -811,8 +857,8 @@ bool CameraLocalClient::init_laser_sensor() {
         return false;
     }
 
-    _laser_shm_data = ::mmap(nullptr, sizeof(LaserSharedMemory), PROT_READ, MAP_SHARED,
-                             _laser_shm_fd, 0);
+    _laser_shm_data =
+        ::mmap(nullptr, sizeof(LaserSharedMemory), PROT_READ, MAP_SHARED, _laser_shm_fd, 0);
     if (_laser_shm_data == MAP_FAILED) {
         base::LogError() << "Failed to map laser shared memory " << kLaserShmName << ": "
                          << strerror(errno);
@@ -879,7 +925,7 @@ void CameraLocalClient::backend_read_loop() {
 
             if (snapshot.sensor_status == 1) {
                 _laser_distance_raw = static_cast<int>(snapshot.distance_mm);
-                base::LogDebug() << "distance is " << _laser_distance_raw;
+                // base::LogDebug() << "distance is " << _laser_distance_raw;
             }
         }
 
@@ -988,6 +1034,7 @@ bool CameraLocalClient::init_main_camera() {
     options.brand = kCameraBrand;
     options.module = kCameraModule;
     options.camera_id = 0;
+    options.enable_shared_preview_frame = true;
     options.init_mode = camera_mode;
     if (options.init_mode == mav_camera::Mode::Photo) {
         _settings[kCameraModeName] = "0";
@@ -1910,6 +1957,63 @@ bool CameraLocalClient::set_ir_FFC(std::string /*ignore*/) {
         return true;
     }
     return false;
+}
+
+std::string CameraLocalClient::init_tracking_mode() {
+    auto store_tracking_mode = _camera_param.get_value(kTrackingMode);
+    if (store_tracking_mode.empty()) {
+        store_tracking_mode = "0";
+        _camera_param.set_value(kTrackingMode, store_tracking_mode);
+        return store_tracking_mode;
+    }
+
+    if (store_tracking_mode == "1") {
+        set_tracking_mode(store_tracking_mode);
+    }
+    return store_tracking_mode;
+}
+
+bool CameraLocalClient::set_tracking_mode(std::string mode) {
+    if (mode == "1") {
+        _settings[kTrackingMode] = "1";
+        {
+            std::lock_guard<std::mutex> lock(_tracking_frame_mutex);
+            _tracking_frame = TrackingFrame{};
+            _has_tracking_frame = false;
+        }
+
+        if (!_tracking_server.running() &&
+            !_tracking_server.start(kTrackingAddress, kTrackingPort)) {
+            base::LogError() << "Failed to start tracking server";
+            _settings[kTrackingMode] = "0";
+            return false;
+        }
+
+        int ret = std::system("systemctl start ai_vision.service");
+        if (ret != 0) {
+            base::LogError() << "Failed to start ai_vision.service, ret: " << ret;
+            _tracking_server.stop();
+            _settings[kTrackingMode] = "0";
+            return false;
+        }
+        return true;
+    }
+
+    _settings[kTrackingMode] = "0";
+    int ret = std::system("systemctl stop ai_vision.service");
+    if (ret != 0) {
+        base::LogWarn() << "Failed to stop ai_vision.service, ret: " << ret;
+    }
+    _tracking_server.stop();
+    {
+        std::lock_guard<std::mutex> lock(_tracking_frame_mutex);
+        _tracking_frame = TrackingFrame{};
+        _has_tracking_frame = false;
+    }
+    if (_render_bridge != nullptr) {
+        _render_bridge->draw_bounding_boxes({});
+    }
+    return true;
 }
 
 bool CameraLocalClient::init_render_bridge() {

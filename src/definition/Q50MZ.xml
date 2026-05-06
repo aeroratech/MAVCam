@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="3">
+    <definition version="4">
         <model>Q50MZ</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -282,6 +282,14 @@
             <options>
                 <option name="NOTHING" value="0" />
                 <option name="EXECUTE" value="1" />
+            </options>
+        </parameter>
+        <!-- Tracking Param -->
+        <parameter name="CAM_TRACKING" type="int32" default="0">
+            <description>Tracking</description>
+            <options>
+                <option name="Disable" value="0" />
+                <option name="Enable" value="1" />
             </options>
         </parameter>
     </parameters>
