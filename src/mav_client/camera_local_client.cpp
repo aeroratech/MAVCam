@@ -42,11 +42,12 @@ const std::string kShutterSpeedName = "CAM_SHUTTERSPD";
 const std::string kMeteringModeName = "CAM_METER";
 const std::string kSharpnessName = "CAM_SHARPNESS";
 const std::string kAELockName = "CAM_AE_LOCK";
-
+//IR Camera
 const std::string kIrCamPalette = "IR_PALETTE";
 const std::string kIrCamFFCMode = "IR_FFC_MODE";
 const std::string kIrCamFFC = "IR_FFC";
-const std::string kTrackingMode = "CAM_TRACKING";
+//AI Function
+const std::string kAIDetection = "AI_DETECTION";
 
 namespace {
 
@@ -103,7 +104,8 @@ void IRCaptureCallback(ir_camera::IRFrame *frame, void *context) {
 CameraLocalClient::CameraLocalClient() {
     _image_count = 0;
     _is_recording_video = false;
-    _tracking_server.set_callback([this](const TrackingFrame &frame) { tracking_callback(frame); });
+    _detection_server.set_callback(
+        [this](const TrackingFrame &frame) { tracking_callback(frame); });
 }
 
 CameraLocalClient::~CameraLocalClient() {
@@ -387,9 +389,9 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
                 _settings[kSharpnessName] = "0";
                 _camera_param.set_value(kSharpnessName, _settings[kSharpnessName]);
                 _settings[kAELockName] = "0";  // ae lock don't store to param
-                _settings[kTrackingMode] = "0";
-                _camera_param.set_value(kTrackingMode, _settings[kTrackingMode]);
-                set_tracking_mode(_settings[kTrackingMode]);
+                _settings[kAIDetection] = "0";
+                _camera_param.set_value(kAIDetection, _settings[kAIDetection]);
+                set_ai_detection(_settings[kAIDetection]);
 
                 init_render_mode();
 
@@ -447,7 +449,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 4;
+        information.definition_file_version = 5;
         information.definition_file_uri = "mftp://definition/Q50MZ.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -644,8 +646,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_ir_ffc_mode(setting.option.option_id);
     } else if (setting.setting_id == kIrCamFFC) {
         set_success = set_ir_FFC(setting.option.option_id);
-    } else if (setting.setting_id == kTrackingMode) {
-        set_success = set_tracking_mode(setting.option.option_id);
+    } else if (setting.setting_id == kAIDetection) {
+        set_success = set_ai_detection(setting.option.option_id);
     } else {
         base::LogError() << "Not implement setting" << setting.setting_id;
         set_success = false;
@@ -654,7 +656,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     // when set success update the settings value and store value
     if (set_success) {
         _settings[setting.setting_id] = setting.option.option_id;
-        if (setting.setting_id != kTrackingMode) {
+        if (setting.setting_id != kAIDetection) {
             _camera_param.set_value(setting.setting_id, setting.option.option_id);
         }
 
@@ -709,7 +711,7 @@ bool CameraLocalClient::init() {
     _settings[kIrCamPalette] = init_ir_palette();
     _settings[kIrCamFFCMode] = init_ir_ffc_mode();
     _settings[kIrCamFFC] = "0";
-    _settings[kTrackingMode] = init_tracking_mode();
+    _settings[kAIDetection] = init_ai_detection();
 
     init_laser_sensor();
     init_backend_thread();
@@ -782,7 +784,7 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
         }
     }
 
-    if (_settings[kTrackingMode] == "1") {
+    if (_settings[kAIDetection] == "1") {
         TrackingFrame tracking_frame;
         bool has_tracking_frame = false;
         {
@@ -835,7 +837,7 @@ void CameraLocalClient::tracking_callback(const TrackingFrame &frame) {
 }
 
 void CameraLocalClient::deinit() {
-    set_tracking_mode("0");
+    set_ai_detection("0");
     free_laser_sensor();
     free_backend_thread();
     free_main_camera(true);
@@ -1959,52 +1961,52 @@ bool CameraLocalClient::set_ir_FFC(std::string /*ignore*/) {
     return false;
 }
 
-std::string CameraLocalClient::init_tracking_mode() {
-    auto store_tracking_mode = _camera_param.get_value(kTrackingMode);
-    if (store_tracking_mode.empty()) {
-        store_tracking_mode = "0";
-        _camera_param.set_value(kTrackingMode, store_tracking_mode);
-        return store_tracking_mode;
+std::string CameraLocalClient::init_ai_detection() {
+    auto store_ai_detection = _camera_param.get_value(kAIDetection);
+    if (store_ai_detection.empty()) {
+        store_ai_detection = "0";
+        _camera_param.set_value(kAIDetection, store_ai_detection);
+        return store_ai_detection;
     }
 
-    if (store_tracking_mode == "1") {
-        set_tracking_mode(store_tracking_mode);
+    if (store_ai_detection == "1") {
+        set_ai_detection(store_ai_detection);
     }
-    return store_tracking_mode;
+    return store_ai_detection;
 }
 
-bool CameraLocalClient::set_tracking_mode(std::string mode) {
+bool CameraLocalClient::set_ai_detection(std::string mode) {
     if (mode == "1") {
-        _settings[kTrackingMode] = "1";
+        _settings[kAIDetection] = "1";
         {
             std::lock_guard<std::mutex> lock(_tracking_frame_mutex);
             _tracking_frame = TrackingFrame{};
             _has_tracking_frame = false;
         }
 
-        if (!_tracking_server.running() &&
-            !_tracking_server.start(kTrackingAddress, kTrackingPort)) {
+        if (!_detection_server.running() &&
+            !_detection_server.start(kTrackingAddress, kTrackingPort)) {
             base::LogError() << "Failed to start tracking server";
-            _settings[kTrackingMode] = "0";
+            _settings[kAIDetection] = "0";
             return false;
         }
 
         int ret = std::system("systemctl start ai_vision.service");
         if (ret != 0) {
             base::LogError() << "Failed to start ai_vision.service, ret: " << ret;
-            _tracking_server.stop();
-            _settings[kTrackingMode] = "0";
+            _detection_server.stop();
+            _settings[kAIDetection] = "0";
             return false;
         }
         return true;
     }
 
-    _settings[kTrackingMode] = "0";
+    _settings[kAIDetection] = "0";
     int ret = std::system("systemctl stop ai_vision.service");
     if (ret != 0) {
         base::LogWarn() << "Failed to stop ai_vision.service, ret: " << ret;
     }
-    _tracking_server.stop();
+    _detection_server.stop();
     {
         std::lock_guard<std::mutex> lock(_tracking_frame_mutex);
         _tracking_frame = TrackingFrame{};

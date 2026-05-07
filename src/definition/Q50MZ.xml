@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="4">
+    <definition version="5">
         <model>Q50MZ</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -284,9 +284,9 @@
                 <option name="EXECUTE" value="1" />
             </options>
         </parameter>
-        <!-- Tracking Param -->
-        <parameter name="CAM_TRACKING" type="int32" default="0">
-            <description>Tracking</description>
+        <!-- AI Function -->
+        <parameter name="AI_DETECTION" type="int32" default="0">
+            <description>AI Detection</description>
             <options>
                 <option name="Disable" value="0" />
                 <option name="Enable" value="1" />

@@ -240,11 +240,11 @@ private:
     /**
      * @brief init tracking enable state
      */
-    std::string init_tracking_mode();
+    std::string init_ai_detection();
     /**
      * @brief enable or disable tracking service
      */
-    bool set_tracking_mode(std::string mode);
+    bool set_ai_detection(std::string mode);
     /**
      * @brief init render bridge
      */
@@ -325,7 +325,7 @@ private:
 private:
     CameraParam _camera_param;
     std::optional<bool> _sdcard_valid;  // no initial value
-    TrackingServer _tracking_server;
+    TrackingServer _detection_server;
     mutable std::mutex _tracking_frame_mutex;
     TrackingFrame _tracking_frame;
     bool _has_tracking_frame{false};
