@@ -1991,9 +1991,9 @@ bool CameraLocalClient::set_ai_detection(std::string mode) {
             return false;
         }
 
-        int ret = std::system("systemctl start ai_vision.service");
+        int ret = std::system("systemctl start object_detection.service");
         if (ret != 0) {
-            base::LogError() << "Failed to start ai_vision.service, ret: " << ret;
+            base::LogError() << "Failed to start object_detection.service, ret: " << ret;
             _detection_server.stop();
             _settings[kAIDetection] = "0";
             return false;
@@ -2002,9 +2002,9 @@ bool CameraLocalClient::set_ai_detection(std::string mode) {
     }
 
     _settings[kAIDetection] = "0";
-    int ret = std::system("systemctl stop ai_vision.service");
+    int ret = std::system("systemctl stop object_detection.service");
     if (ret != 0) {
-        base::LogWarn() << "Failed to stop ai_vision.service, ret: " << ret;
+        base::LogWarn() << "Failed to stop object_detection.service, ret: " << ret;
     }
     _detection_server.stop();
     {
