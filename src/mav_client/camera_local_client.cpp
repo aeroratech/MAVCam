@@ -810,22 +810,22 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
     }
 
     ///< draw osd info
-    const int laser_distance_raw = _laser_distance_raw.load();
     const int32_t current_iso = _current_iso.load();
     const float current_shutter_speed = _current_shuter_speed.load();
     std::vector<std::tuple<int32_t, int32_t, std::string>> texts;
+    if (current_iso >= 0) {
+        texts.emplace_back(20, 60, "ISO: " + std::to_string(current_iso));
+    }
+    if (current_shutter_speed >= 0) {
+        texts.emplace_back(20, 90, "ShutterSpeed: " + std::to_string(current_shutter_speed) + " s");
+    }
+
+    const int laser_distance_raw = _laser_distance_raw.load();
     if (laser_distance_raw >= 0) {
         std::ostringstream laser_text;
         laser_text << std::fixed << std::setprecision(1)
                    << "Distance: " << (laser_distance_raw / 10.0f) << " m";
-        texts.emplace_back(80, 420, laser_text.str());
-    }
-    if (current_iso >= 0) {
-        texts.emplace_back(80, 450, "ISO: " + std::to_string(current_iso));
-    }
-    if (current_shutter_speed >= 0) {
-        texts.emplace_back(80, 480,
-                           "ShutterSpeed: " + std::to_string(current_shutter_speed) + " s");
+        texts.emplace_back(20, 140, laser_text.str());
     }
     _render_bridge->draw_osd_texts(texts);
 }
