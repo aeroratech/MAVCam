@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="5">
+    <definition version="6">
         <model>Q50MZ</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -275,6 +275,13 @@
             <options>
                 <option name="Manual" value="0" />
                 <option name="Auto" value="1" />
+            </options>
+        </parameter>
+        <parameter name="IR_TEMPERATURE" type="int32" default="0">
+            <description>IR Temperature</description>
+            <options>
+                <option name="Disable" value="0" />
+                <option name="Enable" value="1" />
             </options>
         </parameter>
         <parameter name="IR_FFC" type="int32" default="0">

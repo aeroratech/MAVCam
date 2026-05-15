@@ -238,6 +238,22 @@ private:
      */
     bool set_ir_FFC(std::string ignore);
     /**
+     * @brief init ir temperature measurement state
+     */
+    std::string init_ir_temperature();
+    /**
+     * @brief enable or disable ir temperature measurement
+     */
+    bool set_ir_temperature(std::string mode);
+    /**
+     * @brief stop ir temperature measurement thread
+     */
+    void stop_ir_temperature();
+    /**
+     * @brief ir temperature measurement loop
+     */
+    void ir_temperature_loop();
+    /**
      * @brief init tracking enable state
      */
     std::string init_ai_detection();
@@ -318,6 +334,11 @@ private:
 private:
     void *_ir_camera_handle{NULL};
     ir_camera::IRCamera *_ir_camera{nullptr};
+    std::thread _ir_temperature_thread;
+    std::atomic<bool> _ir_temperature_running{false};
+    std::atomic<float> _ir_temperature_min{0.0f};
+    std::atomic<float> _ir_temperature_max{0.0f};
+    std::atomic<float> _ir_temperature_ave{0.0f};
 private:
     void *_render_bridge_handle{NULL};
     RenderBridge *_render_bridge{nullptr};

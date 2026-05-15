@@ -46,6 +46,7 @@ const std::string kAELockName = "CAM_AE_LOCK";
 const std::string kIrCamPalette = "IR_PALETTE";
 const std::string kIrCamFFCMode = "IR_FFC_MODE";
 const std::string kIrCamFFC = "IR_FFC";
+const std::string kIrTemperature = "IR_TEMPERATURE";
 //AI Function
 const std::string kAIDetection = "AI_DETECTION";
 
@@ -449,7 +450,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 5;
+        information.definition_file_version = 6;
         information.definition_file_uri = "mftp://definition/Q50MZ.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -646,6 +647,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_ir_ffc_mode(setting.option.option_id);
     } else if (setting.setting_id == kIrCamFFC) {
         set_success = set_ir_FFC(setting.option.option_id);
+    } else if (setting.setting_id == kIrTemperature) {
+        set_success = set_ir_temperature(setting.option.option_id);
     } else if (setting.setting_id == kAIDetection) {
         set_success = set_ai_detection(setting.option.option_id);
     } else {
@@ -711,6 +714,7 @@ bool CameraLocalClient::init() {
     _settings[kIrCamPalette] = init_ir_palette();
     _settings[kIrCamFFCMode] = init_ir_ffc_mode();
     _settings[kIrCamFFC] = "0";
+    _settings[kIrTemperature] = init_ir_temperature();
     _settings[kAIDetection] = init_ai_detection();
 
     init_laser_sensor();
@@ -827,6 +831,25 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
                    << "Distance: " << (laser_distance_raw / 10.0f) << " m";
         texts.emplace_back(20, 140, laser_text.str());
     }
+
+    if (_settings[kIrTemperature] == "1") {
+        texts.emplace_back(20, 200, "Temperature ");
+
+        std::ostringstream max_temperature_text;
+        max_temperature_text << std::fixed << std::setprecision(1)
+                             << "Max: " << _ir_temperature_max.load() << " ℃";
+        texts.emplace_back(20, 240, max_temperature_text.str());
+
+        std::ostringstream min_temperature_text;
+        min_temperature_text << std::fixed << std::setprecision(1)
+                             << "Min: " << _ir_temperature_min.load() << " ℃";
+        texts.emplace_back(20, 270, min_temperature_text.str());
+
+        std::ostringstream ave_temperature_text;
+        ave_temperature_text << std::fixed << std::setprecision(1)
+                             << "Average: " << _ir_temperature_ave.load() << " ℃";
+        texts.emplace_back(20, 300, ave_temperature_text.str());
+    }
     _render_bridge->draw_osd_texts(texts);
 }
 
@@ -837,6 +860,7 @@ void CameraLocalClient::tracking_callback(const TrackingFrame &frame) {
 }
 
 void CameraLocalClient::deinit() {
+    stop_ir_temperature();
     set_ai_detection("0");
     free_laser_sensor();
     free_backend_thread();
@@ -1888,6 +1912,7 @@ bool CameraLocalClient::init_ir_camera() {
 }
 
 void CameraLocalClient::free_ir_camera() {
+    stop_ir_temperature();
     if (_ir_camera != nullptr) {
         _ir_camera->close();
         delete _ir_camera;
@@ -1959,6 +1984,74 @@ bool CameraLocalClient::set_ir_FFC(std::string /*ignore*/) {
         return true;
     }
     return false;
+}
+
+std::string CameraLocalClient::init_ir_temperature() {
+    auto store_ir_temperature = _camera_param.get_value(kIrTemperature);
+    if (store_ir_temperature.empty()) {
+        store_ir_temperature = "0";
+        _camera_param.set_value(kIrTemperature, store_ir_temperature);
+    }
+
+    if (!set_ir_temperature(store_ir_temperature)) {
+        store_ir_temperature = "0";
+        set_ir_temperature(store_ir_temperature);
+        _camera_param.set_value(kIrTemperature, store_ir_temperature);
+    }
+    return store_ir_temperature;
+}
+
+bool CameraLocalClient::set_ir_temperature(std::string mode) {
+    if (mode == "1") {
+        if (_ir_camera == nullptr) {
+            base::LogError() << "Cannot enable ir temperature without ir camera";
+            return false;
+        }
+        if (_ir_temperature_thread.joinable()) {
+            return true;
+        }
+        if (!_ir_camera->open_thermal_function()) {
+            base::LogError() << "Open ir temperature function failed";
+            return false;
+        }
+        _ir_temperature_running = true;
+        _ir_temperature_thread = std::thread(&CameraLocalClient::ir_temperature_loop, this);
+        return true;
+    }
+
+    if (mode == "0") {
+        stop_ir_temperature();
+        return true;
+    }
+
+    base::LogError() << "Invalid ir temperature mode " << mode;
+    return false;
+}
+
+void CameraLocalClient::stop_ir_temperature() {
+    bool was_running = _ir_temperature_running.exchange(false);
+    bool had_thread = _ir_temperature_thread.joinable();
+    if (_ir_temperature_thread.joinable()) {
+        _ir_temperature_thread.join();
+    }
+    if ((was_running || had_thread) && _ir_camera != nullptr) {
+        _ir_camera->close_thermal_function();
+    }
+}
+
+void CameraLocalClient::ir_temperature_loop() {
+    const ir_camera::Rect measure_rect{0, 0, 640, 512};
+    while (_ir_temperature_running) {
+        if (_ir_camera != nullptr) {
+            ir_camera::ThermalTemperatures temperatures{};
+            if (_ir_camera->measure_temperature(measure_rect, &temperatures)) {
+                _ir_temperature_min = temperatures.min_temperature;
+                _ir_temperature_max = temperatures.max_temperature;
+                _ir_temperature_ave = temperatures.ave_temperature;
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 }
 
 std::string CameraLocalClient::init_ai_detection() {
