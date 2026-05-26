@@ -211,6 +211,16 @@ private:
      */
     bool set_ir_palette(std::string color_mode);
     /**
+     * @brief init ir camera FFC mode
+     * @details prefer to use store ir FFC mode
+     * @return current ir FFC mode
+     */
+    std::string init_ir_ffc_mode();
+    /**
+     * @brief set ir camera FFC mode
+     */
+    bool set_ir_ffc_mode(std::string ffc_mode);
+    /**
      * @brief execute ir camera FFC
      */
     bool set_ir_FFC(std::string ignore);
