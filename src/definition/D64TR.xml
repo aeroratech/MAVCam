@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="16">
+    <definition version="17">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -266,6 +266,13 @@
                 <option name="GLOBOW" value="7" />
                 <option name="GRADEDFIRE" value="8" />
                 <option name="HOTTEST" value="9" />
+            </options>
+        </parameter>
+        <parameter name="IRCAM_FFCMODE" type="int32" default="1">
+            <description>Infrared Camera FFC Mode</description>
+            <options>
+                <option name="Manual" value="0" />
+                <option name="Auto" value="1" />
             </options>
         </parameter>
         <parameter name="IRCAM_FFC" type="int32" default="0">

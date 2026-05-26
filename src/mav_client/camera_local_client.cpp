@@ -35,6 +35,7 @@ const std::string kSharpnessName = "CAM_SHARPNESS";
 const std::string kAELockName = "CAM_AE_LOCK";
 
 const std::string kIrCamPalette = "IRCAM_PALETTE";
+const std::string kIrCamFFCMode = "IRCAM_FFCMODE";
 const std::string kIrCamFFC = "IRCAM_FFC";
 
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
@@ -406,7 +407,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 16;
+        information.definition_file_version = 17;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -599,6 +600,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_ae_lock(setting.option.option_id);
     } else if (setting.setting_id == kIrCamPalette) {
         set_success = set_ir_palette(setting.option.option_id);
+    } else if (setting.setting_id == kIrCamFFCMode) {
+        set_success = set_ir_ffc_mode(setting.option.option_id);
     } else if (setting.setting_id == kIrCamFFC) {
         set_success = set_ir_FFC(setting.option.option_id);
     } else {
@@ -660,6 +663,7 @@ bool CameraLocalClient::init() {
     // NOTE (thomas): don't check ir camera status, because camera can init without ir camera
     init_ir_camera();
     _settings[kIrCamPalette] = init_ir_palette();
+    _settings[kIrCamFFCMode] = init_ir_ffc_mode();
     _settings[kIrCamFFC] = "0";
 
     base::LogDebug() << "Init settings :";
@@ -1424,6 +1428,33 @@ bool CameraLocalClient::set_ir_palette(std::string color_mode) {
     ir_camera::ColorMode convert_mode = (ir_camera::ColorMode)std::stoi(color_mode);
     if (_ir_camera != nullptr) {
         return _ir_camera->set_color_mode(convert_mode);
+    }
+    return false;
+}
+
+std::string CameraLocalClient::init_ir_ffc_mode() {
+    auto store_ir_ffc_mode = _camera_param.get_value(kIrCamFFCMode);
+    if (store_ir_ffc_mode.empty()) {
+        std::string ffc_mode;
+        if (_ir_camera != nullptr) {
+            ir_camera::FFCMode current_mode = _ir_camera->get_ffc_mode();
+            base::LogDebug() << "Current ir FFC mode is " << static_cast<int>(current_mode);
+            ffc_mode = std::to_string(static_cast<int>(current_mode));
+        } else {
+            ffc_mode = "1";
+        }
+        _camera_param.set_value(kIrCamFFCMode, ffc_mode);
+        return ffc_mode;
+    } else {
+        set_ir_ffc_mode(store_ir_ffc_mode);
+        return store_ir_ffc_mode;
+    }
+}
+
+bool CameraLocalClient::set_ir_ffc_mode(std::string ffc_mode) {
+    ir_camera::FFCMode convert_mode = (ir_camera::FFCMode)std::stoi(ffc_mode);
+    if (_ir_camera != nullptr) {
+        return _ir_camera->set_ffc_mode(convert_mode);
     }
     return false;
 }
