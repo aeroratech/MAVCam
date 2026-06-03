@@ -18,7 +18,7 @@ public:
     ~MavClient() {}
 public:
     bool init(std::string &connection_url, bool use_local, int32_t rpc_port,
-              std::string &ftp_root_path, bool compatible_qgc);
+              std::string &ftp_root_path, bool compatible_qgc, const std::string &rtsp_ip);
     bool start_runloop();
     void stop_runloop();
 private:

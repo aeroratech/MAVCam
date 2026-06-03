@@ -8,6 +8,7 @@
 #include <iostream>
 #include <mutex>
 #include <regex>
+#include <string>
 
 #include "base/file_operation.h"
 #include "base/log.h"
@@ -16,6 +17,10 @@
 
 static auto constexpr default_connection = "udp://127.0.0.1:14550";
 static auto constexpr default_rpc_port = 50051;
+static auto constexpr default_connection_type = "usb";
+static auto constexpr usb_rtsp_ip = "192.168.251.1";
+static auto constexpr wlan_rtsp_ip = "192.168.251.1";
+static auto constexpr ethernet_rtsp_ip = "192.168.199.108";
 static std::string default_ftp_path = "/usr/share/mav-cam/";
 static std::string default_log_path = "/data/camera/";
 static bool work_as_autopilot = false;
@@ -32,6 +37,8 @@ int main(int argc, const char *argv[]) {
     std::string connection_url = default_connection;
     int rpc_port = default_rpc_port;
     bool use_local = true;
+    std::string connection_type = default_connection_type;
+    std::string rtsp_ip = usb_rtsp_ip;
 
     for (int i = 1; i < argc; i++) {
         const std::string current_arg = argv[i];
@@ -78,6 +85,24 @@ int main(int argc, const char *argv[]) {
             }
             default_log_path = std::string(argv[i + 1]);
             i++;
+        } else if (current_arg == "--connection_type" || current_arg == "--connection-type") {
+            if (argc <= i + 1) {
+                usage(argv[0]);
+                return 1;
+            }
+            connection_type = std::string(argv[i + 1]);
+            i++;
+            if (connection_type == "ethernet") {
+                rtsp_ip = ethernet_rtsp_ip;
+            } else if (connection_type == "wlan") {
+                rtsp_ip = wlan_rtsp_ip;
+            } else if (connection_type == "usb") {
+                rtsp_ip = usb_rtsp_ip;
+            } else {
+                std::cout << "Invalid connection type: " << connection_type << std::endl;
+                usage(argv[0]);
+                return 1;
+            }
         } else if (current_arg == "--camera_mode") {
             if (argc <= i + 1) {
                 usage(argv[0]);
@@ -121,6 +146,7 @@ int main(int argc, const char *argv[]) {
     if (work_as_autopilot) {
         base::LogInfo() << "Work as autopilot";
     }
+    base::LogInfo() << "Connection type is " << connection_type << ", RTSP IP is " << rtsp_ip;
 
     const char *init_camera_mode = getenv("MAVCAM_INIT_CAMERA_MODE");
     if (init_camera_mode != NULL) {
@@ -131,7 +157,8 @@ int main(int argc, const char *argv[]) {
         base::LogInfo() << "Init camera snapshot resolution is " << init_snapshot_resolution;
     }
 
-    if (!client.init(connection_url, use_local, rpc_port, default_ftp_path, work_as_autopilot)) {
+    if (!client.init(connection_url, use_local, rpc_port, default_ftp_path, work_as_autopilot,
+                     rtsp_ip)) {
         std::cout << "Cannot init mav client " << connection_url << std::endl;
         return 1;
     }
@@ -162,6 +189,8 @@ void usage(const char *bin_name) {
               << " (default is " << default_ftp_path << ")" << '\n'
               << "\t--log_path     : store output log to file path, default is " << default_log_path
               << '\n'
+              << "\t--connection_type : set connection type: usb, wlan, or ethernet,"
+              << " default is " << default_connection_type << '\n'
               << "\t--camera_mode  : init camera mode, 0 for photo mode 1 for video mode" << '\n'
               << "\t--snapshot_resolution : init snapshot resoltuion" << '\n'
               << "\t--autopilot           : make mav_client work as Autopilot" << '\n';
@@ -172,7 +201,7 @@ static void init_log() {
     if (default_log_path.empty()) {
         return;
     }
-    constexpr size_t kMaxLogFileSize = 3 * 1024 * 1024;  // max log file size is 3MB
+    constexpr size_t kMaxLogFileSize = 5 * 1024 * 1024;  // max log file size is 5MB
     std::string full_path = default_log_path + "mav_client.log";
     // If file exists and is larger than kMaxLogFileSize, truncate it
     auto file_status = fs::status(full_path);

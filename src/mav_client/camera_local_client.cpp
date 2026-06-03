@@ -9,6 +9,7 @@
 #include <iomanip>  // for std::setprecision
 #include <regex>
 #include <thread>
+#include <utility>
 
 #include "base/log.h"
 #include "led_control/led_control.h"
@@ -69,7 +70,7 @@ void IRCaptureCallback(ir_camera::IRFrame *frame, void *context) {
     }
 }
 
-CameraLocalClient::CameraLocalClient() {
+CameraLocalClient::CameraLocalClient(std::string rtsp_ip) : _rtsp_ip(std::move(rtsp_ip)) {
     _image_count = 0;
     _is_recording_video = false;
 }
@@ -357,8 +358,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
                 set_camera_display_mode(_settings[kCameraDisplayModeName]);
 
                 final_result = mavsdk::CameraServer::Result::Success;
-            }
-            else {
+            } else {
                 final_result = mavsdk::CameraServer::Result::Error;
             }
         }
@@ -449,7 +449,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_video_stream_info(
     normal_video_stream.settings.vertical_resolution_pix = 720;
     normal_video_stream.settings.bit_rate_b_s = 1 * 1024 * 1024;
     normal_video_stream.settings.rotation_deg = 0;
-    normal_video_stream.settings.uri = "rtsp://192.168.251.1/live";
+    normal_video_stream.settings.uri = "rtsp://" + _rtsp_ip + "/live";
     normal_video_stream.settings.horizontal_fov_deg = 0;
     normal_video_stream.status =
         mavsdk::CameraServer::VideoStreamInfo::VideoStreamStatus::InProgress;

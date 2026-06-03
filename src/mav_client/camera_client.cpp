@@ -9,8 +9,8 @@
 
 namespace mavcam {
 
-CameraClient *CreateLocalCameraClient() {
-    auto local_client = new CameraLocalClient();
+CameraClient *CreateLocalCameraClient(const std::string &rtsp_ip) {
+    auto local_client = new CameraLocalClient(rtsp_ip);
     bool ret = local_client->init();
     if (!ret) {
         delete local_client;
