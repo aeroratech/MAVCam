@@ -4,6 +4,7 @@
 #include <chrono>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -18,7 +19,7 @@ namespace mavcam {
 
 class CameraLocalClient : public CameraClient {
 public:
-    CameraLocalClient();
+    explicit CameraLocalClient(std::string rtsp_ip);
     virtual ~CameraLocalClient();
 public:  // operation
     virtual mavsdk::CameraServer::Result take_photo(int index) override;
@@ -281,6 +282,7 @@ private:
 private:
     CameraParam _camera_param;
     std::optional<bool> _sdcard_valid;  // no initial value
+    std::string _rtsp_ip;
 };
 
 }  // namespace mavcam
