@@ -3,6 +3,7 @@
 #include <mavsdk/plugins/camera/camera.h>
 #include <mavsdk/plugins/camera_server/camera_server.h>
 
+#include <string>
 #include <vector>
 
 namespace mavcam {
@@ -62,7 +63,7 @@ public:  // settings
         mavsdk::Camera::Setting setting) const = 0;
 };
 
-CameraClient *CreateLocalCameraClient();
+CameraClient *CreateLocalCameraClient(const std::string &rtsp_ip);
 CameraClient *CreateRpcCameraClient(int rpc_port);
 
 }  // namespace mavcam

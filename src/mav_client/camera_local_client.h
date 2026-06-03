@@ -6,6 +6,7 @@
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -21,7 +22,7 @@ namespace mavcam {
 
 class CameraLocalClient : public CameraClient {
 public:
-    CameraLocalClient();
+    explicit CameraLocalClient(std::string rtsp_ip);
     virtual ~CameraLocalClient();
 public:  // operation
     virtual mavsdk::CameraServer::Result take_photo(int index) override;
@@ -346,6 +347,7 @@ private:
 private:
     CameraParam _camera_param;
     std::optional<bool> _sdcard_valid;  // no initial value
+private:
     TrackingServer _detection_server;
     mutable std::mutex _tracking_frame_mutex;
     TrackingFrame _tracking_frame;
@@ -359,6 +361,8 @@ private:
     std::atomic<bool> _backend_running{false};
     std::atomic<int32_t> _current_iso{-1};
     std::atomic<float> _current_shuter_speed{-1.0f};
+private:
+    std::string _rtsp_ip;
 };
 
 }  // namespace mavcam

@@ -102,7 +102,7 @@ void IRCaptureCallback(ir_camera::IRFrame *frame, void *context) {
     }
 }
 
-CameraLocalClient::CameraLocalClient() {
+CameraLocalClient::CameraLocalClient(std::string rtsp_ip) : _rtsp_ip(std::move(rtsp_ip)) {
     _image_count = 0;
     _is_recording_video = false;
     _detection_server.set_callback(
@@ -490,9 +490,9 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_video_stream_info(
     normal_video_stream.settings.frame_rate_hz = 30.0;
     normal_video_stream.settings.horizontal_resolution_pix = 1920;
     normal_video_stream.settings.vertical_resolution_pix = 1080;
-    normal_video_stream.settings.bit_rate_b_s = 10 * 1024 * 1024;
+    normal_video_stream.settings.bit_rate_b_s = 2 * 1024 * 1024;
     normal_video_stream.settings.rotation_deg = 0;
-    normal_video_stream.settings.uri = "rtsp://192.168.199.108/live";
+    normal_video_stream.settings.uri = "rtsp://" + _rtsp_ip + "/live";
     normal_video_stream.settings.horizontal_fov_deg = 0;
     normal_video_stream.status =
         mavsdk::CameraServer::VideoStreamInfo::VideoStreamStatus::InProgress;

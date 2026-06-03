@@ -24,7 +24,8 @@
 namespace mavcam {
 
 bool MavClient::init(std::string &connection_url, bool use_local, int32_t rpc_port,
-                     std::string &ftp_root_path, bool work_as_autopilot) {
+                     std::string &ftp_root_path, bool work_as_autopilot,
+                     const std::string &rtsp_ip) {
     /**
      * first init set led status to normal
      */
@@ -36,7 +37,7 @@ bool MavClient::init(std::string &connection_url, bool use_local, int32_t rpc_po
     _work_as_autopilot = work_as_autopilot;
 
     if (use_local) {
-        _camera_client = CreateLocalCameraClient();  // use local client
+        _camera_client = CreateLocalCameraClient(rtsp_ip);  // use local client
     } else {
         _camera_client = CreateRpcCameraClient(_rpc_port);  // use rpc client
     }
