@@ -890,16 +890,11 @@ bool CameraLocalClient::init_mav_camera() {
     auto store_video_format = _camera_param.get_value(kVideoFormat);
     if (store_video_format.empty()) {
         auto [_, video_encoder_type] = _mav_camera->get_video_encoder_type();
-        options.video_encoder_type = video_encoder_type;
         _settings[kVideoFormat] =
             video_encoder_type == mav_camera::VideoEncoderType::H265 ? "1" : "0";
         _camera_param.set_value(kVideoFormat, _settings[kVideoFormat]);
     } else {
         _settings[kVideoFormat] = store_video_format;
-        options.video_encoder_type =
-            store_video_format == "1" || store_video_format == "2"
-                ? mav_camera::VideoEncoderType::H265
-                : mav_camera::VideoEncoderType::H264;
     }
 
     /************** Jpeg Quality *************/
@@ -1070,13 +1065,23 @@ bool CameraLocalClient::set_video_resolution(std::string value) {
 }
 
 bool CameraLocalClient::set_video_format(std::string value) {
-    mav_camera::VideoEncoderType type = mav_camera::VideoEncoderType::H264;
-    if (value == "1") {
-        type = mav_camera::VideoEncoderType::H265;
+    const bool use_h265 = value == "1" || value == "2";
+    const auto rgb_type =
+        use_h265 ? mav_camera::VideoEncoderType::H265 : mav_camera::VideoEncoderType::H264;
+    const auto ir_type =
+        use_h265 ? ir_camera::VideoEncoderType::H265 : ir_camera::VideoEncoderType::H264;
+
+    bool success = true;
+    if (_mav_camera != nullptr) {
+        base::LogDebug() << "Set rgb video encoder type to " << rgb_type;
+        auto result = _mav_camera->set_video_encoder_type(rgb_type);
+        success = success && result == mav_camera::Result::Success;
     }
-    base::LogDebug() << "Set video encoder type to " << type;
-    auto result = _mav_camera->set_video_encoder_type(type);
-    return result == mav_camera::Result::Success;
+    if (_ir_camera != nullptr) {
+        base::LogDebug() << "Set ir video encoder type to " << ir_type;
+        success = success && _ir_camera->set_video_encoder_type(ir_type);
+    }
+    return success;
 }
 
 bool CameraLocalClient::set_photo_quality(std::string value) {
@@ -1411,6 +1416,10 @@ bool CameraLocalClient::init_ir_camera() {
         delete _ir_camera;
         _ir_camera = nullptr;
         return false;
+    }
+
+    if (_settings.count(kVideoFormat) != 0) {
+        set_video_format(_settings[kVideoFormat]);
     }
 
     _ir_camera->start_capture(IRCaptureCallback, this);
