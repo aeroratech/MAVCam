@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="17">
+    <definition version="18">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -83,7 +83,6 @@
             <options>
                 <option name="jpg" value="0" />
                 <option name="dng" value="1" />
-                <option name="jpg+dng" value="2" />
             </options>
         </parameter>
         <parameter name="CAM_WBMODE" type="int32" default="0">
@@ -174,6 +173,7 @@
         <parameter name="CAM_ISO" type="int32" default="125">
             <description>ISO</description>
             <options>
+                <option name="100" value="100" />
                 <option name="125" value="125" />
                 <option name="160" value="160" />
                 <option name="200" value="200" />
@@ -227,7 +227,7 @@
             <description>Video Format</description>
             <options>
                 <option name="H264" value="1" />
-                <option name="HEVC" value="2" />
+                <option name="H265" value="2" />
             </options>
         </parameter>
         <parameter name="CAM_METER" type="int32" default="0">
