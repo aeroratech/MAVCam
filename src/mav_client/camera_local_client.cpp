@@ -345,7 +345,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
                 _camera_param.set_value(kShutterSpeedName, _settings[kShutterSpeedName]);
                 _settings[kVideoResolution] = "1";  // default video resolution is 4k 30fps
                 _camera_param.set_value(kVideoResolution, _settings[kVideoResolution]);
-                _settings[kVideoFormat] = "1";
+                _settings[kVideoFormat] = "0";
                 _camera_param.set_value(kVideoFormat, _settings[kVideoFormat]);
                 _settings[kMeteringModeName] = "0";
                 _camera_param.set_value(kMeteringModeName, _settings[kMeteringModeName]);
@@ -577,6 +577,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     } else if (setting.setting_id == kVideoResolution) {
         set_success = set_video_resolution(setting.option.option_id);
         need_refresh_render_mode = true;
+    } else if (setting.setting_id == kVideoFormat) {
+        set_success = set_video_format(setting.option.option_id);
     } else if (setting.setting_id == kPhotoQuality) {
         set_success = set_photo_quality(setting.option.option_id);
     } else if (setting.setting_id == kPhotoFormat) {
@@ -884,6 +886,22 @@ bool CameraLocalClient::init_mav_camera() {
         }
     }
 
+    /************** Video Format *************/
+    auto store_video_format = _camera_param.get_value(kVideoFormat);
+    if (store_video_format.empty()) {
+        auto [_, video_encoder_type] = _mav_camera->get_video_encoder_type();
+        options.video_encoder_type = video_encoder_type;
+        _settings[kVideoFormat] =
+            video_encoder_type == mav_camera::VideoEncoderType::H265 ? "1" : "0";
+        _camera_param.set_value(kVideoFormat, _settings[kVideoFormat]);
+    } else {
+        _settings[kVideoFormat] = store_video_format;
+        options.video_encoder_type =
+            store_video_format == "1" || store_video_format == "2"
+                ? mav_camera::VideoEncoderType::H265
+                : mav_camera::VideoEncoderType::H264;
+    }
+
     /************** Jpeg Quality *************/
     auto store_jpeg_quality = _camera_param.get_value(kPhotoQuality);
     if (store_jpeg_quality.empty()) {
@@ -913,8 +931,6 @@ bool CameraLocalClient::init_mav_camera() {
             options.photo_format = mav_camera::PhotoFormat::JPEG;
         } else if (store_photo_format == "1") {
             options.photo_format = mav_camera::PhotoFormat::DNG;
-        } else {
-            options.photo_format = mav_camera::PhotoFormat::JPEG_DNG;
         }
     }
 
@@ -1053,6 +1069,16 @@ bool CameraLocalClient::set_video_resolution(std::string value) {
     return result == mav_camera::Result::Success;
 }
 
+bool CameraLocalClient::set_video_format(std::string value) {
+    mav_camera::VideoEncoderType type = mav_camera::VideoEncoderType::H264;
+    if (value == "1") {
+        type = mav_camera::VideoEncoderType::H265;
+    }
+    base::LogDebug() << "Set video encoder type to " << type;
+    auto result = _mav_camera->set_video_encoder_type(type);
+    return result == mav_camera::Result::Success;
+}
+
 bool CameraLocalClient::set_photo_quality(std::string value) {
     mav_camera::JpegQuality jpeg_quality;
     if (value == "0") {
@@ -1073,8 +1099,6 @@ bool CameraLocalClient::set_photo_format(std::string value) {
     } else if (value == "1") {
         photo_format = mav_camera::PhotoFormat::DNG;
         _settings[kPhotoResolution] = "0";  //dng must be full resolution
-    } else if (value == "2") {
-        photo_format = mav_camera::PhotoFormat::JPEG_DNG;
     }
     auto result = _mav_camera->set_photo_format(photo_format);
     return result == mav_camera::Result::Success;
@@ -1270,10 +1294,12 @@ bool CameraLocalClient::set_shutter_speed(std::string shutter_speed) {
 std::string CameraLocalClient::init_video_format() {
     auto store_video_format = _camera_param.get_value(kVideoFormat);
     if (store_video_format.empty()) {
-        std::string video_format = "1";
+        std::string video_format = "0";
         _camera_param.set_value(kVideoFormat, video_format);
+        set_video_format(video_format);
         return video_format;
     } else {
+        set_video_format(store_video_format);
         return store_video_format;
     }
 }

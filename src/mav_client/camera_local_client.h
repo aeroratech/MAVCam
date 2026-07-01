@@ -106,6 +106,10 @@ private:
      */
     bool set_video_resolution(std::string value);
     /**
+     *  set video encoder type
+     */
+    bool set_video_format(std::string value);
+    /**
      * @brief set photo quality
      */
     bool set_photo_quality(std::string value);

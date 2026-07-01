@@ -223,11 +223,11 @@
                 <option name="1920 x 1080 30fps (FHD)" value="3" />
             </options>
         </parameter>
-        <parameter name="CAM_VIDFMT" type="int32" default="1">
+        <parameter name="CAM_VIDFMT" type="int32" default="0">
             <description>Video Format</description>
             <options>
-                <option name="H264" value="1" />
-                <option name="H265" value="2" />
+                <option name="H264" value="0" />
+                <option name="H265" value="1" />
             </options>
         </parameter>
         <parameter name="CAM_METER" type="int32" default="0">
