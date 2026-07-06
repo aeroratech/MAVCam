@@ -810,6 +810,7 @@ bool CameraLocalClient::init_mav_camera() {
 
     options.brand = kCameraBrand;
     options.module = kCameraModule;
+    options.enable_shared_preview_frame = true;
     options.init_mode = camera_mode;
     if (options.init_mode == mav_camera::Mode::Photo) {
         _settings[kCameraModeName] = "0";
