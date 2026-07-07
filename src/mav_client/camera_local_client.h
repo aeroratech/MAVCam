@@ -14,6 +14,7 @@
 #include "mav_camera.h"
 #include "render_bridge.h"
 #include "storage_manager.h"
+#include "tracking_server.h"
 
 namespace mavcam {
 
@@ -56,6 +57,7 @@ public:
      * @brief capture callback implement for display
      */
     void capture_callback(mav_camera::MAVFrame *rgb_frame, ir_camera::IRFrame *ir_frame);
+    void tracking_callback(const TrackingFrame &frame);
 private:
     /**
      * @brief deinit instance
@@ -230,6 +232,17 @@ private:
      */
     bool set_ir_FFC(std::string ignore);
     /**
+     * @brief init onboard AI function mode
+     * @details prefer to use stored AI function mode
+     * @return current AI mode: 0 disables AI, 1 enables object detection, 2 enables object tracking
+     */
+    std::string init_ai_function();
+    /**
+     * @brief set onboard AI function mode
+     * @details mode 0 disables AI, 1 starts object_detection.service, 2 starts object_tracking.service
+     */
+    bool set_ai_function(std::string mode);
+    /**
      * @brief init render bridge
      */
     bool init_render_bridge();
@@ -287,6 +300,10 @@ private:
     CameraParam _camera_param;
     std::optional<bool> _sdcard_valid;  // no initial value
     std::string _rtsp_ip;
+    TrackingServer _tracking_server;
+    mutable std::mutex _tracking_frame_mutex;
+    TrackingFrame _tracking_frame;
+    bool _has_tracking_frame{false};
 };
 
 }  // namespace mavcam

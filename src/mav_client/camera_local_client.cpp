@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <cstdlib>
 #include <future>
 #include <iomanip>  // for std::setprecision
 #include <regex>
@@ -39,7 +40,16 @@ const std::string kIrCamPalette = "IRCAM_PALETTE";
 const std::string kIrCamFFCMode = "IRCAM_FFCMODE";
 const std::string kIrCamFFC = "IRCAM_FFC";
 
+const std::string kAIFunction = "CAM_AI_FUNC";
+
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
+
+namespace {
+constexpr const char *kObjectDetectionService = "object_detection.service";
+constexpr const char *kObjectTrackingService = "object_tracking.service";
+constexpr const char *kTrackingAddress = "127.0.0.1";
+constexpr int kTrackingPort = 14600;
+}  // namespace
 
 #define QCOM_CAMERA_LIBERAY "libqcom_camera.so"
 #define IR_CAMERA_LIBRARY "libir_camera.so"
@@ -73,6 +83,7 @@ void IRCaptureCallback(ir_camera::IRFrame *frame, void *context) {
 CameraLocalClient::CameraLocalClient(std::string rtsp_ip) : _rtsp_ip(std::move(rtsp_ip)) {
     _image_count = 0;
     _is_recording_video = false;
+    _tracking_server.set_callback([this](const TrackingFrame &frame) { tracking_callback(frame); });
 }
 
 CameraLocalClient::~CameraLocalClient() {
@@ -352,6 +363,9 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
                 _settings[kSharpnessName] = "0";
                 _camera_param.set_value(kSharpnessName, _settings[kSharpnessName]);
                 _settings[kAELockName] = "0";  // ae lock don't store to param
+                _settings[kAIFunction] = "0";
+                _camera_param.set_value(kAIFunction, _settings[kAIFunction]);
+                set_ai_function(_settings[kAIFunction]);
 
                 init_render_mode();
 
@@ -407,7 +421,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 18;
+        information.definition_file_version = 19;
         information.definition_file_uri = "mftp://definition/D64TR.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -606,6 +620,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_ir_ffc_mode(setting.option.option_id);
     } else if (setting.setting_id == kIrCamFFC) {
         set_success = set_ir_FFC(setting.option.option_id);
+    } else if (setting.setting_id == kAIFunction) {
+        set_success = set_ai_function(setting.option.option_id);
     } else {
         base::LogError() << "Not implement setting" << setting.setting_id;
         set_success = false;
@@ -614,7 +630,9 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     // when set success update the settings value and store value
     if (set_success) {
         _settings[setting.setting_id] = setting.option.option_id;
-        _camera_param.set_value(setting.setting_id, setting.option.option_id);
+        if (setting.setting_id != kAIFunction) {
+            _camera_param.set_value(setting.setting_id, setting.option.option_id);
+        }
 
         if (need_refresh_render_mode) {
             init_render_mode();
@@ -667,6 +685,7 @@ bool CameraLocalClient::init() {
     _settings[kIrCamPalette] = init_ir_palette();
     _settings[kIrCamFFCMode] = init_ir_ffc_mode();
     _settings[kIrCamFFC] = "0";
+    _settings[kAIFunction] = init_ai_function();
 
     base::LogDebug() << "Init settings :";
     for (const auto &setting : _settings) {
@@ -730,9 +749,41 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *rgb_frame,
                                                  ir_frame->width, ir_frame->height);
         }
     }
+
+    if (_settings[kAIFunction] != "0") {
+        TrackingFrame tracking_frame;
+        bool has_tracking_frame = false;
+        {
+            std::lock_guard<std::mutex> lock(_tracking_frame_mutex);
+            tracking_frame = _tracking_frame;
+            has_tracking_frame = _has_tracking_frame;
+        }
+
+        std::vector<BoundingBox> boxes;
+        if (has_tracking_frame) {
+            boxes.reserve(tracking_frame.objects.size());
+            for (const auto &object : tracking_frame.objects) {
+                BoundingBox box;
+                box.x = object.x;
+                box.y = object.y;
+                box.width = object.width;
+                box.height = object.height;
+                box.label = object.name;
+                boxes.emplace_back(std::move(box));
+            }
+        }
+        _render_bridge->draw_bounding_boxes(boxes);
+    }
+}
+
+void CameraLocalClient::tracking_callback(const TrackingFrame &frame) {
+    std::lock_guard<std::mutex> lock(_tracking_frame_mutex);
+    _tracking_frame = frame;
+    _has_tracking_frame = true;
 }
 
 void CameraLocalClient::deinit() {
+    set_ai_function("0");
     free_ir_camera();
     free_render_bridge();
     free_storage_manager();
@@ -1501,6 +1552,83 @@ bool CameraLocalClient::set_ir_FFC(std::string /*ignore*/) {
         return true;
     }
     return false;
+}
+
+std::string CameraLocalClient::init_ai_function() {
+    auto store_ai_function = _camera_param.get_value(kAIFunction);
+    if (store_ai_function.empty()) {
+        store_ai_function = "0";
+        _camera_param.set_value(kAIFunction, store_ai_function);
+        return store_ai_function;
+    }
+
+    if (store_ai_function != "0") {
+        set_ai_function(store_ai_function);
+    }
+    return store_ai_function;
+}
+
+bool CameraLocalClient::set_ai_function(std::string mode) {
+    if (mode != "0" && mode != "1" && mode != "2") {
+        base::LogError() << "Invalid AI function mode: " << mode;
+        return false;
+    }
+
+    auto stop_service = [](const char *service) {
+        std::string command = std::string("systemctl stop ") + service;
+        int ret = std::system(command.c_str());
+        if (ret != 0) {
+            base::LogWarn() << "Failed to stop " << service << ", ret: " << ret;
+        }
+    };
+
+    auto start_service = [](const char *service) {
+        std::string command = std::string("systemctl start ") + service;
+        int ret = std::system(command.c_str());
+        if (ret != 0) {
+            base::LogError() << "Failed to start " << service << ", ret: " << ret;
+            return false;
+        }
+        return true;
+    };
+
+    auto clear_tracking_frame = [this]() {
+        std::lock_guard<std::mutex> lock(_tracking_frame_mutex);
+        _tracking_frame = TrackingFrame{};
+        _has_tracking_frame = false;
+    };
+
+    clear_tracking_frame();
+
+    if (mode == "0") {
+        _settings[kAIFunction] = "0";
+        stop_service(kObjectDetectionService);
+        stop_service(kObjectTrackingService);
+        _tracking_server.stop();
+        if (_render_bridge != nullptr) {
+            _render_bridge->draw_bounding_boxes({});
+        }
+        return true;
+    }
+
+    const char *service_to_start = mode == "1" ? kObjectDetectionService : kObjectTrackingService;
+    const char *service_to_stop = mode == "1" ? kObjectTrackingService : kObjectDetectionService;
+
+    stop_service(service_to_stop);
+    if (!_tracking_server.running() && !_tracking_server.start(kTrackingAddress, kTrackingPort)) {
+        base::LogError() << "Failed to start tracking server";
+        _settings[kAIFunction] = "0";
+        return false;
+    }
+
+    if (!start_service(service_to_start)) {
+        _tracking_server.stop();
+        _settings[kAIFunction] = "0";
+        return false;
+    }
+
+    _settings[kAIFunction] = mode;
+    return true;
 }
 
 bool CameraLocalClient::init_render_bridge() {
