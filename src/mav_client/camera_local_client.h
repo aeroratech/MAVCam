@@ -233,8 +233,8 @@ private:
     bool set_ir_FFC(std::string ignore);
     /**
      * @brief init onboard AI function mode
-     * @details prefer to use stored AI function mode
-     * @return current AI mode: 0 disables AI, 1 enables object detection, 2 enables object tracking
+     * @details AI function mode is not stored permanently and is disabled on each service boot
+     * @return current AI mode: 0 disables AI
      */
     std::string init_ai_function();
     /**
