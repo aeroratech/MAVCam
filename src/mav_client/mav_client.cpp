@@ -9,6 +9,7 @@
 #include <mavsdk/plugins/param_server/param_server.h>
 #include <mavsdk/plugins/telemetry/telemetry.h>
 #include <mavsdk/plugins/telemetry_server/telemetry_server.h>
+#include <mavsdk/plugins/tracking_server/tracking_server.h>
 
 #include <chrono>
 #include <filesystem>
@@ -71,8 +72,10 @@ bool MavClient::start_runloop() {
     }
     auto camera_server = mavsdk::CameraServer{camera_component};
     auto param_server = mavsdk::ParamServer{camera_component};
+    auto tracking_server = mavsdk::TrackingServer{camera_component};
     subscribe_camera_operation(camera_server, param_server);
     subscribe_param_operation(param_server);
+    subscribe_tracking_operation(tracking_server);
     auto ftp_server = mavsdk::FtpServer{camera_component};
     ftp_server.set_root_dir(_ftp_root_path);
     base::LogInfo() << "Launch ftp server with root path " << _ftp_root_path;
@@ -243,6 +246,32 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
     if (video_stream_infos.size() > 0) {
         ret = camera_server.set_video_stream_info(video_stream_infos);
     }
+}
+
+void MavClient::subscribe_tracking_operation(mavsdk::TrackingServer &tracking_server) {
+    tracking_server.subscribe_tracking_point_command(
+        [&tracking_server](mavsdk::TrackingServer::TrackPoint point) {
+            base::LogInfo() << "Tracking point command x:" << point.point_x
+                            << " y:" << point.point_y << " radius:" << point.radius;
+            tracking_server.respond_tracking_point_command(
+                mavsdk::TrackingServer::CommandAnswer::Accepted);
+        });
+
+    tracking_server.subscribe_tracking_rectangle_command(
+        [&tracking_server](mavsdk::TrackingServer::TrackRectangle rectangle) {
+            base::LogInfo() << "Tracking rectangle command left:" << rectangle.top_left_corner_x
+                            << " top:" << rectangle.top_left_corner_y
+                            << " right:" << rectangle.bottom_right_corner_x
+                            << " bottom:" << rectangle.bottom_right_corner_y;
+            tracking_server.respond_tracking_rectangle_command(
+                mavsdk::TrackingServer::CommandAnswer::Denied);
+        });
+
+    tracking_server.subscribe_tracking_off_command([&tracking_server](int32_t reserved) {
+        base::LogInfo() << "Tracking off command " << reserved;
+        tracking_server.respond_tracking_off_command(
+            mavsdk::TrackingServer::CommandAnswer::Accepted);
+    });
 }
 
 void MavClient::subscribe_param_operation(mavsdk::ParamServer &param_server) {
