@@ -364,7 +364,6 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
                 _camera_param.set_value(kSharpnessName, _settings[kSharpnessName]);
                 _settings[kAELockName] = "0";  // ae lock don't store to param
                 _settings[kAIFunction] = "0";
-                _camera_param.set_value(kAIFunction, _settings[kAIFunction]);
                 set_ai_function(_settings[kAIFunction]);
 
                 init_render_mode();
@@ -1555,17 +1554,8 @@ bool CameraLocalClient::set_ir_FFC(std::string /*ignore*/) {
 }
 
 std::string CameraLocalClient::init_ai_function() {
-    auto store_ai_function = _camera_param.get_value(kAIFunction);
-    if (store_ai_function.empty()) {
-        store_ai_function = "0";
-        _camera_param.set_value(kAIFunction, store_ai_function);
-        return store_ai_function;
-    }
-
-    if (store_ai_function != "0") {
-        set_ai_function(store_ai_function);
-    }
-    return store_ai_function;
+    set_ai_function("0");
+    return "0";
 }
 
 bool CameraLocalClient::set_ai_function(std::string mode) {
