@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="18">
+    <definition version="19">
         <model>D64TR</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -280,6 +280,15 @@
             <options>
                 <option name="NOTHING" value="0" />
                 <option name="EXECUTE" value="1" />
+            </options>
+        </parameter>
+        <!-- Camera AI Function -->
+        <parameter name="CAM_AI_FUNC" type="int32" default="0">
+            <description>AI Function</description>
+            <options>
+                <option name="Disable" value="0" />
+                <option name="Detection" value="1" />
+                <option name="Tracking" value="2" />
             </options>
         </parameter>
     </parameters>

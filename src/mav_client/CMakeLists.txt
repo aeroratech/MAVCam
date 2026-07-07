@@ -10,6 +10,7 @@ set(MAV_CLIENT_SOURCES
     camera_local_client.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../camera_param/camera_param.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/../led_control/led_control.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tracking/tracking_server.cpp
 )
 
 if (BUILD_SERVER)
@@ -29,6 +30,7 @@ add_executable(${EXECUTE_NAME}
 target_include_directories(${EXECUTE_NAME}
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tracking
     ${DEP_INSTALL_DIR}/include
 )
 
@@ -43,6 +45,7 @@ target_link_libraries(${EXECUTE_NAME}
     MAVSDK::mavsdk
     Threads::Threads
     dl
+    jsoncpp
 )
 
 if (BUILD_SERVER)
