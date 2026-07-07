@@ -6,6 +6,7 @@
 namespace mavsdk {
 class CameraServer;
 class ParamServer;
+class TrackingServer;
 }  // namespace mavsdk
 
 namespace mavcam {
@@ -25,6 +26,7 @@ private:
     void subscribe_camera_operation(mavsdk::CameraServer &camera_server,
                                     mavsdk::ParamServer &param_server);
     void subscribe_param_operation(mavsdk::ParamServer &param_server);
+    void subscribe_tracking_operation(mavsdk::TrackingServer &tracking_server);
     void fill_param(mavsdk::ParamServer &param_server);
 private:
     std::atomic<bool> _running;

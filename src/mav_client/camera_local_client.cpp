@@ -447,6 +447,8 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         mavsdk::CameraServer::Information::CameraCapFlags::HasVideoStream);
     information.camera_cap_flags.emplace_back(
         mavsdk::CameraServer::Information::CameraCapFlags::HasBasicZoom);
+    information.camera_cap_flags.emplace_back(
+        mavsdk::CameraServer::Information::CameraCapFlags::HasTrackingPoint);
     return mavsdk::CameraServer::Result::Success;
 }
 
