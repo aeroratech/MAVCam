@@ -39,16 +39,26 @@ public:
     void set_callback(TrackingCallback callback);
     TrackingFrame latest_frame() const;
 
+    bool enable_detection();
+    bool enable_tracking_point(uint16_t x, uint16_t y);
+    bool disable_tracking();
+
 private:
     void run_loop();
     void handle_client(int client_fd);
     bool parse_line(const std::string &line, TrackingFrame &frame) const;
+    bool send_control_command(bool enable_detection, bool enable_tracking, uint16_t x, uint16_t y);
 
     std::string _address;
     int _port = 0;
     int _server_fd = -1;
     std::atomic<bool> _running{false};
     std::thread _thread;
+
+    mutable std::mutex _client_mutex;
+    int _client_fd = -1;
+    uint8_t _control_packet_index = 0;
+    std::vector<uint8_t> _latest_control_packet;
 
     mutable std::mutex _mutex;
     TrackingFrame _latest_frame;

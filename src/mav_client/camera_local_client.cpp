@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <future>
@@ -49,6 +50,9 @@ constexpr const char *kObjectDetectionService = "object_detection.service";
 constexpr const char *kObjectTrackingService = "object_tracking.service";
 constexpr const char *kTrackingAddress = "127.0.0.1";
 constexpr int kTrackingPort = 14600;
+constexpr int kTrackingControlSourceWidth = 1920;
+constexpr int kTrackingPhotoControlSourceHeight = 1440;
+constexpr int kTrackingVideoControlSourceHeight = 1920;
 }  // namespace
 
 #define QCOM_CAMERA_LIBERAY "libqcom_camera.so"
@@ -1555,6 +1559,30 @@ bool CameraLocalClient::set_ir_FFC(std::string /*ignore*/) {
     return false;
 }
 
+bool CameraLocalClient::enable_tracking_point(float point_x, float point_y) {
+    float clamped_x = std::max(0.0f, std::min(point_x, 1.0f));
+    float clamped_y = std::max(0.0f, std::min(point_y, 1.0f));
+    int source_height = (_settings[kCameraModeName] == "0")
+                            ? kTrackingPhotoControlSourceHeight
+                            : kTrackingVideoControlSourceHeight;
+
+    uint16_t x = static_cast<uint16_t>(clamped_x * kTrackingControlSourceWidth);
+    uint16_t y = static_cast<uint16_t>(clamped_y * source_height);
+
+    if (x >= kTrackingControlSourceWidth) {
+        x = kTrackingControlSourceWidth - 1;
+    }
+    if (y >= source_height) {
+        y = source_height - 1;
+    }
+
+    return _tracking_server.enable_tracking_point(x, y);
+}
+
+bool CameraLocalClient::disable_tracking() {
+    return _tracking_server.disable_tracking();
+}
+
 std::string CameraLocalClient::init_ai_function() {
     set_ai_function("0");
     return "0";
@@ -1617,6 +1645,10 @@ bool CameraLocalClient::set_ai_function(std::string mode) {
         _tracking_server.stop();
         _settings[kAIFunction] = "0";
         return false;
+    }
+
+    if (mode == "2") {
+        _tracking_server.enable_detection();
     }
 
     _settings[kAIFunction] = mode;

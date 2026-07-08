@@ -34,6 +34,8 @@ public:  // operation
         std::function<void(mavsdk::CameraServer::Result)> callback) override;
     virtual mavsdk::CameraServer::Result set_timestamp(int64_t time_unix_msec) override;
     virtual mavsdk::CameraServer::Result set_zoom_range(float range) override;
+    bool enable_tracking_point(float point_x, float point_y) override;
+    bool disable_tracking() override;
 public:  // subscribe
     virtual mavsdk::CameraServer::Result fill_information(
         mavsdk::CameraServer::Information &information) override;

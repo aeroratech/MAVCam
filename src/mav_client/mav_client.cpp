@@ -250,11 +250,13 @@ void MavClient::subscribe_camera_operation(mavsdk::CameraServer &camera_server,
 
 void MavClient::subscribe_tracking_operation(mavsdk::TrackingServer &tracking_server) {
     tracking_server.subscribe_tracking_point_command(
-        [&tracking_server](mavsdk::TrackingServer::TrackPoint point) {
+        [this, &tracking_server](mavsdk::TrackingServer::TrackPoint point) {
             base::LogInfo() << "Tracking point command x:" << point.point_x
                             << " y:" << point.point_y << " radius:" << point.radius;
+            bool sent = _camera_client->enable_tracking_point(point.point_x, point.point_y);
             tracking_server.respond_tracking_point_command(
-                mavsdk::TrackingServer::CommandAnswer::Accepted);
+                sent ? mavsdk::TrackingServer::CommandAnswer::Accepted
+                     : mavsdk::TrackingServer::CommandAnswer::Denied);
         });
 
     tracking_server.subscribe_tracking_rectangle_command(
@@ -267,10 +269,12 @@ void MavClient::subscribe_tracking_operation(mavsdk::TrackingServer &tracking_se
                 mavsdk::TrackingServer::CommandAnswer::Denied);
         });
 
-    tracking_server.subscribe_tracking_off_command([&tracking_server](int32_t reserved) {
+    tracking_server.subscribe_tracking_off_command([this, &tracking_server](int32_t reserved) {
         base::LogInfo() << "Tracking off command " << reserved;
+        bool sent = _camera_client->disable_tracking();
         tracking_server.respond_tracking_off_command(
-            mavsdk::TrackingServer::CommandAnswer::Accepted);
+            sent ? mavsdk::TrackingServer::CommandAnswer::Accepted
+                 : mavsdk::TrackingServer::CommandAnswer::Denied);
     });
 }
 
