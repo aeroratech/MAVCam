@@ -43,6 +43,8 @@ public:  // operation
         std::function<void(mavsdk::CameraServer::Result)> callback) = 0;
     virtual mavsdk::CameraServer::Result set_timestamp(int64_t time_unix_msec) = 0;
     virtual mavsdk::CameraServer::Result set_zoom_range(float range) = 0;
+    virtual bool enable_tracking_point(float point_x, float point_y) = 0;
+    virtual bool disable_tracking() = 0;
 public:  // subscribe
     virtual mavsdk::CameraServer::Result fill_information(
         mavsdk::CameraServer::Information &information) = 0;

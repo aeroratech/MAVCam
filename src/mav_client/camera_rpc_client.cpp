@@ -264,6 +264,14 @@ mavsdk::CameraServer::Result CameraRpcClient::set_zoom_range(float range) {
     return translateFromRpcResult(response.camera_result().result());
 }
 
+bool CameraRpcClient::enable_tracking_point(float point_x, float point_y) {
+    return false;
+}
+
+bool CameraRpcClient::disable_tracking() {
+    return false;
+}
+
 mavsdk::CameraServer::Result CameraRpcClient::fill_information(
     mavsdk::CameraServer::Information &information) {
     if (!_init_information) {
