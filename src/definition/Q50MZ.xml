@@ -84,7 +84,6 @@
             <options>
                 <option name="jpg" value="0" />
                 <option name="dng" value="1" />
-                <option name="jpg+dng" value="2" />
             </options>
         </parameter>
         <parameter name="CAM_WBMODE" type="int32" default="0">
@@ -292,11 +291,11 @@
             </options>
         </parameter>
         <!-- AI Function -->
-        <parameter name="AI_DETECTION" type="int32" default="0">
-            <description>AI Detection</description>
+        <parameter name="AI_FUNCTION" type="int32" default="0">
+            <description>AI Function</description>
             <options>
                 <option name="Disable" value="0" />
-                <option name="Enable" value="1" />
+                <option name="Detection" value="1" />
             </options>
         </parameter>
     </parameters>

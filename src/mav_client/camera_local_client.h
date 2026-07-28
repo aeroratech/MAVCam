@@ -257,11 +257,11 @@ private:
     /**
      * @brief init tracking enable state
      */
-    std::string init_ai_detection();
+    std::string init_ai_function();
     /**
      * @brief enable or disable tracking service
      */
-    bool set_ai_detection(std::string mode);
+    bool set_ai_function(std::string mode);
     /**
      * @brief init render bridge
      */

@@ -48,7 +48,7 @@ const std::string kIrCamFFCMode = "IR_FFC_MODE";
 const std::string kIrCamFFC = "IR_FFC";
 const std::string kIrTemperature = "IR_TEMPERATURE";
 //AI Function
-const std::string kAIDetection = "AI_DETECTION";
+const std::string kAIFunction = "AI_FUNCTION";
 
 namespace {
 
@@ -390,9 +390,9 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
                 _settings[kSharpnessName] = "0";
                 _camera_param.set_value(kSharpnessName, _settings[kSharpnessName]);
                 _settings[kAELockName] = "0";  // ae lock don't store to param
-                _settings[kAIDetection] = "0";
-                _camera_param.set_value(kAIDetection, _settings[kAIDetection]);
-                set_ai_detection(_settings[kAIDetection]);
+                _settings[kAIFunction] = "0";
+                _camera_param.set_value(kAIFunction, _settings[kAIFunction]);
+                set_ai_function(_settings[kAIFunction]);
 
                 init_render_mode();
 
@@ -649,8 +649,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_ir_FFC(setting.option.option_id);
     } else if (setting.setting_id == kIrTemperature) {
         set_success = set_ir_temperature(setting.option.option_id);
-    } else if (setting.setting_id == kAIDetection) {
-        set_success = set_ai_detection(setting.option.option_id);
+    } else if (setting.setting_id == kAIFunction) {
+        set_success = set_ai_function(setting.option.option_id);
     } else {
         base::LogError() << "Not implement setting" << setting.setting_id;
         set_success = false;
@@ -659,7 +659,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     // when set success update the settings value and store value
     if (set_success) {
         _settings[setting.setting_id] = setting.option.option_id;
-        if (setting.setting_id != kAIDetection) {
+        if (setting.setting_id != kAIFunction) {
             _camera_param.set_value(setting.setting_id, setting.option.option_id);
         }
 
@@ -715,7 +715,7 @@ bool CameraLocalClient::init() {
     _settings[kIrCamFFCMode] = init_ir_ffc_mode();
     _settings[kIrCamFFC] = "0";
     _settings[kIrTemperature] = init_ir_temperature();
-    _settings[kAIDetection] = init_ai_detection();
+    _settings[kAIFunction] = init_ai_function();
 
     init_laser_sensor();
     init_backend_thread();
@@ -788,7 +788,7 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
         }
     }
 
-    if (_settings[kAIDetection] == "1") {
+    if (_settings[kAIFunction] == "1") {
         TrackingFrame tracking_frame;
         bool has_tracking_frame = false;
         {
@@ -861,7 +861,7 @@ void CameraLocalClient::tracking_callback(const TrackingFrame &frame) {
 
 void CameraLocalClient::deinit() {
     stop_ir_temperature();
-    set_ai_detection("0");
+    set_ai_function("0");
     free_laser_sensor();
     free_backend_thread();
     free_main_camera(true);
@@ -2054,23 +2054,23 @@ void CameraLocalClient::ir_temperature_loop() {
     }
 }
 
-std::string CameraLocalClient::init_ai_detection() {
-    auto store_ai_detection = _camera_param.get_value(kAIDetection);
-    if (store_ai_detection.empty()) {
-        store_ai_detection = "0";
-        _camera_param.set_value(kAIDetection, store_ai_detection);
-        return store_ai_detection;
+std::string CameraLocalClient::init_ai_function() {
+    auto store_ai_function = _camera_param.get_value(kAIFunction);
+    if (store_ai_function.empty()) {
+        store_ai_function = "0";
+        _camera_param.set_value(kAIFunction, store_ai_function);
+        return store_ai_function;
     }
 
-    if (store_ai_detection == "1") {
-        set_ai_detection(store_ai_detection);
+    if (store_ai_function == "1") {
+        set_ai_function(store_ai_function);
     }
-    return store_ai_detection;
+    return store_ai_function;
 }
 
-bool CameraLocalClient::set_ai_detection(std::string mode) {
+bool CameraLocalClient::set_ai_function(std::string mode) {
     if (mode == "1") {
-        _settings[kAIDetection] = "1";
+        _settings[kAIFunction] = "1";
         {
             std::lock_guard<std::mutex> lock(_tracking_frame_mutex);
             _tracking_frame = TrackingFrame{};
@@ -2080,7 +2080,7 @@ bool CameraLocalClient::set_ai_detection(std::string mode) {
         if (!_detection_server.running() &&
             !_detection_server.start(kTrackingAddress, kTrackingPort)) {
             base::LogError() << "Failed to start tracking server";
-            _settings[kAIDetection] = "0";
+            _settings[kAIFunction] = "0";
             return false;
         }
 
@@ -2088,13 +2088,13 @@ bool CameraLocalClient::set_ai_detection(std::string mode) {
         if (ret != 0) {
             base::LogError() << "Failed to start object_detection.service, ret: " << ret;
             _detection_server.stop();
-            _settings[kAIDetection] = "0";
+            _settings[kAIFunction] = "0";
             return false;
         }
         return true;
     }
 
-    _settings[kAIDetection] = "0";
+    _settings[kAIFunction] = "0";
     int ret = std::system("systemctl stop object_detection.service");
     if (ret != 0) {
         base::LogWarn() << "Failed to stop object_detection.service, ret: " << ret;
