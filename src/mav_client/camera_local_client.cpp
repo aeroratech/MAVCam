@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -62,6 +63,20 @@ struct LaserSharedMemory {
     std::uint8_t sensor_status{0};
 };
 
+constexpr double fusion_zoom_change_threshold = 23.4637;
+
+constexpr float kZoomRangeMin = 1.0F;
+constexpr float kZoomRangeMax = 100.0F;
+
+// Keep the endpoints unchanged while making the beginning of the zoom range
+// less sensitive and the end of the range more sensitive.
+float map_zoom_range(float range) {
+    const float clamped_range = std::clamp(range, kZoomRangeMin, kZoomRangeMax);
+    const float normalized_range =
+        (clamped_range - kZoomRangeMin) / (kZoomRangeMax - kZoomRangeMin);
+    return kZoomRangeMin + normalized_range * normalized_range *
+                               (kZoomRangeMax - kZoomRangeMin);
+}
 }  // namespace
 
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
@@ -427,8 +442,15 @@ mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
     std::lock_guard<std::mutex> lock(_action_mutex);
+    float real_range = map_zoom_range(range);
+    if (real_range >= fusion_zoom_change_threshold) {
+        set_camera_display_mode("1");   // switch to telephoto camera
+        real_range -= fusion_zoom_change_threshold;
+    } else {
+        set_camera_display_mode("0");   // switch to main camera
+    }
     auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
-    auto result = rgb_camera->set_zoom(range);
+    auto result = rgb_camera->set_zoom(real_range);
     return convert_camera_result_to_mav_server_result(result);
 }
 
