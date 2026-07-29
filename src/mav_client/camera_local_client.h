@@ -318,7 +318,9 @@ private:
     mutable std::unordered_map<std::string, std::string> _settings;
     std::atomic<bool> _is_formatting{false};
     std::atomic<bool> _is_reseting{false};
-    std::mutex _action_mutex{};  // camera action mutex
+    mutable std::mutex _action_mutex{};  // camera action mutex
+    std::mutex _capture_callback_mutex{};
+    bool _capture_switching{false};
     PreivewStreamType _preview_type;
     SensorMode _sensor_mode;
 private:

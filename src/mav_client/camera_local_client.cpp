@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <charconv>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -321,7 +322,6 @@ mavsdk::CameraServer::Result CameraLocalClient::set_mode(mavsdk::CameraServer::M
     if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
-    std::lock_guard<std::mutex> lock(_action_mutex);
     mav_camera::Result result = mav_camera::Result::Unknown;
     std::string setting_mode = "0";
     if (mode == mavsdk::CameraServer::Mode::Photo) {
@@ -358,17 +358,20 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
     if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
-    std::lock_guard<std::mutex> lock(_action_mutex);
-    if (_is_reseting.exchange(true)) {
-        return mavsdk::CameraServer::Result::Busy;
+    {
+        std::lock_guard<std::mutex> lock(_action_mutex);
+        if (_is_reseting.exchange(true)) {
+            return mavsdk::CameraServer::Result::Busy;
+        }
+        /**
+         * @brief the camera reset will cost some time and the uvc client will read wrong value on reseting.
+         * So just set camera mode to photo before execute reset function. The reset function will always success.
+         */
+        _settings[kCameraModeName] = "0";
+        _camera_param.set_value(kCameraModeName, _settings[kCameraModeName]);
     }
-    /**
-     * @brief the camera reset will cost some time and the uvc client will read wrong value on reseting.
-     * So just set camera mode to photo before execute reset function. The reset function will always success.
-     */
-    _settings[kCameraModeName] = "0";
-    _camera_param.set_value(kCameraModeName, _settings[kCameraModeName]);
     std::async(std::launch::async, [this, callback]() {
+        std::lock_guard<std::mutex> lock(_action_mutex);
         auto final_result = mavsdk::CameraServer::Result::Unknown;
         {
             auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
@@ -428,6 +431,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
 
 mavsdk::CameraServer::Result CameraLocalClient::set_timestamp(int64_t time_unix_msec) {
     base::LogDebug() << "local call set timestamp " << time_unix_msec;
+    std::lock_guard<std::mutex> lock(_action_mutex);
     if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
@@ -444,10 +448,14 @@ mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
     std::lock_guard<std::mutex> lock(_action_mutex);
     float real_range = map_zoom_range(range);
     if (real_range >= fusion_zoom_change_threshold) {
-        set_camera_display_mode("1");   // switch to telephoto camera
+        if (!set_camera_display_mode("1")) {
+            return mavsdk::CameraServer::Result::Error;
+        }
         real_range -= fusion_zoom_change_threshold;
     } else {
-        set_camera_display_mode("0");   // switch to main camera
+        if (!set_camera_display_mode("0")) {
+            return mavsdk::CameraServer::Result::Error;
+        }
     }
     auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
     auto result = rgb_camera->set_zoom(real_range);
@@ -456,6 +464,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
 
 mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     mavsdk::CameraServer::Information &information) {
+    std::lock_guard<std::mutex> lock(_action_mutex);
     mav_camera::Information in_info;
     mav_camera::Result result = mav_camera::Result::NoSystem;
     if (_main_camera != nullptr) {
@@ -618,6 +627,7 @@ mavsdk::CameraServer::Result CameraLocalClient::retrieve_current_settings(
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Setting setting) {
+    std::lock_guard<std::mutex> lock(_action_mutex);
     if (_main_camera == nullptr && _telephoto_camera == nullptr) {
         return mavsdk::CameraServer::Result::NoSystem;
     }
@@ -752,6 +762,10 @@ bool CameraLocalClient::init() {
 void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
                                          mav_camera::MAVFrame *telephoto_frame,
                                          ir_camera::IRFrame *ir_frame) {
+    std::unique_lock<std::mutex> callback_lock(_capture_callback_mutex);
+    if (_capture_switching) {
+        return;
+    }
     if (_render_bridge == nullptr) {
         return;
     }
@@ -882,12 +896,19 @@ void CameraLocalClient::tracking_callback(const TrackingFrame &frame) {
 }
 
 void CameraLocalClient::deinit() {
+    {
+        std::lock_guard<std::mutex> lock(_capture_callback_mutex);
+        _capture_switching = true;
+    }
     stop_ir_temperature();
     set_ai_function("0");
     free_laser_sensor();
     free_backend_thread();
-    free_main_camera(true);
-    free_telephoto_camera(true);
+    {
+        std::lock_guard<std::mutex> lock(_action_mutex);
+        free_main_camera(true);
+        free_telephoto_camera(true);
+    }
     free_ir_camera();
     free_render_bridge();
     free_storage_manager();
@@ -977,20 +998,21 @@ void CameraLocalClient::backend_read_loop() {
             }
         }
 
-        auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
-        if (rgb_camera == nullptr) {
-            std::this_thread::sleep_for(delay_time);
-            continue;
-        }
-        auto [result1, iso] = rgb_camera->get_iso();
-        if (result1 == mav_camera::Result::Success) {
-            _current_iso = iso;
-        }
-        auto [result2, shutter_speed] = rgb_camera->get_shutter_speed();
-        if (result2 == mav_camera::Result::Success) {
-            auto temp_value = std::stof(shutter_speed);
-            float factor = 1e6f;
-            _current_shuter_speed = std::round(temp_value * factor) / factor;
+        {
+            std::lock_guard<std::mutex> lock(_action_mutex);
+            auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
+            if (rgb_camera != nullptr) {
+                auto [result1, iso] = rgb_camera->get_iso();
+                if (result1 == mav_camera::Result::Success) {
+                    _current_iso = iso;
+                }
+                auto [result2, shutter_speed] = rgb_camera->get_shutter_speed();
+                if (result2 == mav_camera::Result::Success) {
+                    auto temp_value = std::stof(shutter_speed);
+                    float factor = 1e6f;
+                    _current_shuter_speed = std::round(temp_value * factor) / factor;
+                }
+            }
         }
         std::this_thread::sleep_for(delay_time);
     }
@@ -1534,21 +1556,54 @@ std::string CameraLocalClient::init_camera_display_mode() {
 }
 
 bool CameraLocalClient::set_camera_display_mode(std::string mode) {
-    auto temp_preview_type = static_cast<PreivewStreamType>(std::stoi(mode));
-    if (_preview_type == temp_preview_type) {
-        return true;
+    int mode_value = 0;
+    const auto parse_result =
+        std::from_chars(mode.data(), mode.data() + mode.size(), mode_value);
+    if (parse_result.ec != std::errc{} || parse_result.ptr != mode.data() + mode.size() ||
+        mode_value < 0 || mode_value > 6) {
+        base::LogError() << "Invalid camera display mode " << mode;
+        return false;
     }
+
+    auto temp_preview_type = static_cast<PreivewStreamType>(mode_value);
+    PreivewStreamType previous_preview_type;
+
+    // close() may race with a pending capture callback in the camera library.
+    // Block new callbacks and wait for the callback currently in progress by
+    // taking this mutex before tearing down either camera.
+    {
+        std::lock_guard<std::mutex> lock(_capture_callback_mutex);
+        if (_preview_type == temp_preview_type) {
+            return true;
+        }
+        previous_preview_type = _preview_type;
+        _capture_switching = true;
+    }
+
+    bool switch_success = true;
     // switch to telephoto mode
     if (temp_preview_type == PreivewStreamType::TelephotoOnly) {
         free_main_camera();
-        init_telephoto_camera();
+        switch_success = init_telephoto_camera();
+        if (!switch_success) {
+            // Keep a valid camera selected if the target camera cannot open.
+            init_main_camera();
+        }
     } else if (_preview_type == PreivewStreamType::TelephotoOnly) {
         base::LogDebug() << "switch back to main mode";
         free_telephoto_camera();
-        init_main_camera();
+        switch_success = init_main_camera();
+        if (!switch_success) {
+            init_telephoto_camera();
+        }
     }
-    _preview_type = temp_preview_type;
-    return true;
+
+    {
+        std::lock_guard<std::mutex> lock(_capture_callback_mutex);
+        _preview_type = switch_success ? temp_preview_type : previous_preview_type;
+        _capture_switching = false;
+    }
+    return switch_success;
 }
 
 bool CameraLocalClient::set_photo_resolution(std::string value) {
