@@ -12,6 +12,7 @@
 
 #include "base/file_operation.h"
 #include "base/log.h"
+#include "base/signal_monitor.h"
 #include "mav_client.h"
 #include "version.h"
 
@@ -21,6 +22,7 @@ static auto constexpr default_connection_type = "usb";
 static auto constexpr usb_rtsp_ip = "192.168.251.1";
 static auto constexpr wlan_rtsp_ip = "192.168.251.1";
 static auto constexpr ethernet_rtsp_ip = "192.168.199.108";
+static auto constexpr default_crash_path = "/data/camera/crash/";
 static std::string default_ftp_path = "/usr/share/mav-cam/";
 static std::string default_log_path = "/data/camera/";
 static bool work_as_autopilot = false;
@@ -137,7 +139,9 @@ int main(int argc, const char *argv[]) {
     }
 
     base::create_folder_if_not_exit(default_log_path);
+    base::create_folder_if_not_exit(default_crash_path);
     init_log();
+    base::register_signal_monitor(default_crash_path);
     signal(SIGINT, signal_handler);
 
     base::LogInfo() << "*************** Launch mav client ***************";
