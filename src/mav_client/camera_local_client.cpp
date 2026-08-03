@@ -853,11 +853,13 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
     const int32_t current_iso = _current_iso.load();
     const float current_shutter_speed = _current_shuter_speed.load();
     std::vector<std::tuple<int32_t, int32_t, std::string>> texts;
+    constexpr int32_t start_x = 260;
+    constexpr int32_t start_y = 160;
     if (current_iso >= 0) {
-        texts.emplace_back(20, 60, "ISO: " + std::to_string(current_iso));
+        texts.emplace_back(start_x, start_y, "ISO: " + std::to_string(current_iso));
     }
     if (current_shutter_speed >= 0) {
-        texts.emplace_back(20, 90, "ShutterSpeed: " + std::to_string(current_shutter_speed) + " s");
+        texts.emplace_back(start_x, start_y + 30, "ShutterSpeed: " + std::to_string(current_shutter_speed) + " s");
     }
 
     const int laser_distance_raw = _laser_distance_raw.load();
@@ -865,26 +867,26 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
         std::ostringstream laser_text;
         laser_text << std::fixed << std::setprecision(1)
                    << "Distance: " << (laser_distance_raw / 10.0f) << " m";
-        texts.emplace_back(20, 140, laser_text.str());
+        texts.emplace_back(start_x, start_y + 80, laser_text.str());
     }
 
     if (_settings[kIrTemperature] == "1") {
-        texts.emplace_back(20, 200, "Temperature ");
+        texts.emplace_back(start_x, start_y + 140, "Temperature ");
 
         std::ostringstream max_temperature_text;
         max_temperature_text << std::fixed << std::setprecision(1)
                              << "Max: " << _ir_temperature_max.load() << " ℃";
-        texts.emplace_back(20, 240, max_temperature_text.str());
+        texts.emplace_back(start_x, start_y + 180, max_temperature_text.str());
 
         std::ostringstream min_temperature_text;
         min_temperature_text << std::fixed << std::setprecision(1)
                              << "Min: " << _ir_temperature_min.load() << " ℃";
-        texts.emplace_back(20, 270, min_temperature_text.str());
+        texts.emplace_back(start_x, start_y + 210, min_temperature_text.str());
 
         std::ostringstream ave_temperature_text;
         ave_temperature_text << std::fixed << std::setprecision(1)
                              << "Average: " << _ir_temperature_ave.load() << " ℃";
-        texts.emplace_back(20, 300, ave_temperature_text.str());
+        texts.emplace_back(start_x, start_y + 240, ave_temperature_text.str());
     }
     _render_bridge->draw_osd_texts(texts);
 }
