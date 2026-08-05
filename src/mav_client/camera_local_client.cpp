@@ -64,7 +64,7 @@ struct LaserSharedMemory {
     std::uint8_t sensor_status{0};
 };
 
-constexpr double fusion_zoom_change_threshold = 23.4637;
+constexpr float fusion_zoom_change_threshold = 25.0F;
 
 constexpr float kZoomRangeMin = 1.0F;
 constexpr float kZoomRangeMax = 100.0F;
@@ -451,7 +451,9 @@ mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
         if (!set_camera_display_mode("1")) {
             return mavsdk::CameraServer::Result::Error;
         }
-        real_range -= fusion_zoom_change_threshold;
+        // The telephoto lens needs a smaller digital zoom range than the wide lens.
+        real_range = std::max(kZoomRangeMin,
+                              (real_range - fusion_zoom_change_threshold) / 3.0F);
     } else {
         if (!set_camera_display_mode("0")) {
             return mavsdk::CameraServer::Result::Error;
