@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <csignal>
+#include <cstdio>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -20,7 +21,6 @@ static auto constexpr default_rpc_port = 50051;
 static auto constexpr default_connection_type = "usb";
 static auto constexpr usb_rtsp_ip = "192.168.251.1";
 static auto constexpr wlan_rtsp_ip = "192.168.251.1";
-static auto constexpr ethernet_rtsp_ip = "192.168.144.108";
 static std::string default_ftp_path = "/usr/share/mav-cam/";
 static std::string default_log_path = "/data/camera/";
 static bool work_as_autopilot = false;
@@ -29,6 +29,30 @@ static void usage(const char *bin_name);
 static void init_log();
 static bool is_integer(const std::string &tested_integer);
 void signal_handler(int signum);
+
+static std::string ethernet_rtsp_ip() {
+    FILE *address_command = popen("ip -4 -o addr show dev eth0", "r");
+    if (address_command == nullptr) {
+        return {};
+    }
+
+    char address[64] = {};
+    const bool has_address = fgets(address, sizeof(address), address_command) != nullptr;
+    pclose(address_command);
+    if (!has_address) {
+        return {};
+    }
+
+    std::string output(address);
+    const auto inet_position = output.find(" inet ");
+    if (inet_position == std::string::npos) {
+        return {};
+    }
+
+    const auto address_start = inet_position + 6;
+    const auto address_end = output.find('/', address_start);
+    return output.substr(address_start, address_end - address_start);
+}
 
 static mavcam::MavClient client;
 int main(int argc, const char *argv[]) {
@@ -93,7 +117,7 @@ int main(int argc, const char *argv[]) {
             connection_type = std::string(argv[i + 1]);
             i++;
             if (connection_type == "ethernet") {
-                rtsp_ip = ethernet_rtsp_ip;
+                rtsp_ip = ethernet_rtsp_ip();
             } else if (connection_type == "wlan") {
                 rtsp_ip = wlan_rtsp_ip;
             } else if (connection_type == "usb") {
@@ -134,6 +158,11 @@ int main(int argc, const char *argv[]) {
             usage(argv[0]);
             return 1;
         }
+    }
+
+    if (connection_type == "ethernet" && rtsp_ip.empty()) {
+        std::cout << "Cannot determine the IPv4 address of eth0" << std::endl;
+        return 1;
     }
 
     base::create_folder_if_not_exit(default_log_path);
