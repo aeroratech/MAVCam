@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="6">
+    <definition version="7">
         <model>Q50MZ</model>
         <vendor>Aeroratech</vendor>
     </definition>
@@ -296,6 +296,14 @@
             <options>
                 <option name="Disable" value="0" />
                 <option name="Detection" value="1" />
+            </options>
+        </parameter>
+        <!-- Other Param -->
+        <parameter name="CAM_OSD" type="int32" default="0">
+            <description>Camera OSD</description>
+            <options>
+                <option name="Disable" value="0" />
+                <option name="Enable" value="1" />
             </options>
         </parameter>
     </parameters>

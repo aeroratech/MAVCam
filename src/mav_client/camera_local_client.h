@@ -348,6 +348,8 @@ private:
     RenderMode _render_mode{RenderMode::Photo_Quarter};
 private:
     CameraParam _camera_param;
+    int32_t _osd_start_x{260};
+    int32_t _osd_start_y{160};
     std::optional<bool> _sdcard_valid;  // no initial value
 private:
     TrackingServer _detection_server;

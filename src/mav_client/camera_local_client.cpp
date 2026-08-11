@@ -51,6 +51,10 @@ const std::string kIrCamFFC = "IR_FFC";
 const std::string kIrTemperature = "IR_TEMPERATURE";
 //AI Function
 const std::string kAIFunction = "AI_FUNCTION";
+//OSD
+const std::string kOSDDisplay = "CAM_OSD";
+const std::string kOSDStartX = "OSD_START_X";
+const std::string kOSDStartY = "OSD_START_Y";
 
 namespace {
 
@@ -68,6 +72,17 @@ constexpr float fusion_zoom_change_threshold = 25.0F;
 
 constexpr float kZoomRangeMin = 1.0F;
 constexpr float kZoomRangeMax = 100.0F;
+
+std::optional<int32_t> parse_int32(const std::string &value) {
+    int32_t result = 0;
+    const char *begin = value.data();
+    const char *end = begin + value.size();
+    const auto [ptr, error] = std::from_chars(begin, end, result);
+    if (error != std::errc{} || ptr != end) {
+        return std::nullopt;
+    }
+    return result;
+}
 
 // Keep the endpoints unchanged while making the beginning of the zoom range
 // less sensitive and the end of the range more sensitive.
@@ -411,6 +426,8 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
                 _settings[kAIFunction] = "0";
                 _camera_param.set_value(kAIFunction, _settings[kAIFunction]);
                 set_ai_function(_settings[kAIFunction]);
+                _settings[kOSDDisplay] = "0";
+                _camera_param.set_value(kOSDDisplay, _settings[kOSDDisplay]);
 
                 init_render_mode();
 
@@ -483,7 +500,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
         //TODO (Thomas) : hard code
-        information.definition_file_version = 6;
+        information.definition_file_version = 7;
         information.definition_file_uri = "mftp://definition/Q50MZ.xml";
     } else {
         information.vendor_name = "Unknown";
@@ -685,6 +702,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
         set_success = set_ir_temperature(setting.option.option_id);
     } else if (setting.setting_id == kAIFunction) {
         set_success = set_ai_function(setting.option.option_id);
+    } else if (setting.setting_id == kOSDDisplay) {
+        set_success = setting.option.option_id == "0" || setting.option.option_id == "1";
     } else {
         base::LogError() << "Not implement setting" << setting.setting_id;
         set_success = false;
@@ -750,6 +769,25 @@ bool CameraLocalClient::init() {
     _settings[kIrCamFFC] = "0";
     _settings[kIrTemperature] = init_ir_temperature();
     _settings[kAIFunction] = init_ai_function();
+
+    auto osd_display = _camera_param.get_value(kOSDDisplay);
+    if (osd_display != "0" && osd_display != "1") {
+        osd_display = "0";
+        _camera_param.set_value(kOSDDisplay, osd_display);
+    }
+    _settings[kOSDDisplay] = osd_display;
+
+    const auto init_osd_coordinate = [this](const std::string &key, int32_t default_value) {
+        const auto stored_value = _camera_param.get_value(key);
+        const auto value = parse_int32(stored_value);
+        if (value.has_value()) {
+            return *value;
+        }
+        _camera_param.set_value(key, std::to_string(default_value));
+        return default_value;
+    };
+    _osd_start_x = init_osd_coordinate(kOSDStartX, 260);
+    _osd_start_y = init_osd_coordinate(kOSDStartY, 160);
 
     init_laser_sensor();
     init_backend_thread();
@@ -851,12 +889,17 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
         _render_bridge->draw_bounding_boxes(boxes);
     }
 
+    if (_settings[kOSDDisplay] != "1") {
+        _render_bridge->draw_osd_texts({});
+        return;
+    }
+
     ///< draw osd info
     const int32_t current_iso = _current_iso.load();
     const float current_shutter_speed = _current_shuter_speed.load();
     std::vector<std::tuple<int32_t, int32_t, std::string>> texts;
-    constexpr int32_t start_x = 260;
-    constexpr int32_t start_y = 160;
+    const int32_t start_x = _osd_start_x;
+    const int32_t start_y = _osd_start_y;
     if (current_iso >= 0) {
         texts.emplace_back(start_x, start_y, "ISO: " + std::to_string(current_iso));
     }
