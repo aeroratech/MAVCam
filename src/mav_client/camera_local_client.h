@@ -276,6 +276,7 @@ private:
 private:
     std::atomic<int> _image_count;
     std::atomic<bool> _is_recording_video;
+    std::atomic<float> _zoom_level{0.0F};
     std::chrono::steady_clock::time_point _start_video_time;
     mutable std::unordered_map<std::string, std::string> _settings;
     std::atomic<bool> _is_formatting{false};
