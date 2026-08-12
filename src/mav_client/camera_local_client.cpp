@@ -478,7 +478,11 @@ mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
     }
     auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
     auto result = rgb_camera->set_zoom(real_range);
-    return convert_camera_result_to_mav_server_result(result);
+    const auto camera_result = convert_camera_result_to_mav_server_result(result);
+    if (camera_result == mavsdk::CameraServer::Result::Success) {
+        _zoom_level.store(std::clamp(range, kZoomRangeMin, kZoomRangeMax));
+    }
+    return camera_result;
 }
 
 mavsdk::CameraServer::Result CameraLocalClient::fill_information(
@@ -630,7 +634,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_settings(
     } else {
         settings.mode = mavsdk::CameraServer::Mode::Video;
     }
-    settings.zoom_level = 0;
+    settings.zoom_level = _zoom_level.load();
     settings.focus_level = 0;
     return mavsdk::CameraServer::Result::Success;
 }
