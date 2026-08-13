@@ -72,6 +72,7 @@ constexpr float fusion_zoom_change_threshold = 25.0F;
 
 constexpr float kZoomRangeMin = 1.0F;
 constexpr float kZoomRangeMax = 100.0F;
+constexpr float kFusionZoomInputThreshold = 60.0F;
 
 std::optional<int32_t> parse_int32(const std::string &value) {
     int32_t result = 0;
@@ -84,14 +85,21 @@ std::optional<int32_t> parse_int32(const std::string &value) {
     return result;
 }
 
-// Keep the endpoints unchanged while making the beginning of the zoom range
-// less sensitive and the end of the range more sensitive.
+// Map the UI's linear range to the camera range while preserving the endpoints.
+// An input value of 60 maps to the lens-switch threshold.
 float map_zoom_range(float range) {
     const float clamped_range = std::clamp(range, kZoomRangeMin, kZoomRangeMax);
-    const float normalized_range =
-        (clamped_range - kZoomRangeMin) / (kZoomRangeMax - kZoomRangeMin);
-    return kZoomRangeMin + normalized_range * normalized_range *
-                               (kZoomRangeMax - kZoomRangeMin);
+    if (clamped_range <= kFusionZoomInputThreshold) {
+        return kZoomRangeMin +
+               (clamped_range - kZoomRangeMin) *
+                   (fusion_zoom_change_threshold - kZoomRangeMin) /
+                   (kFusionZoomInputThreshold - kZoomRangeMin);
+    }
+
+    return fusion_zoom_change_threshold +
+           (clamped_range - kFusionZoomInputThreshold) *
+               (kZoomRangeMax - fusion_zoom_change_threshold) /
+               (kZoomRangeMax - kFusionZoomInputThreshold);
 }
 }  // namespace
 
