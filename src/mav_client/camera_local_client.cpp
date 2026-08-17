@@ -43,6 +43,26 @@ const std::string kIrCamFFC = "IRCAM_FFC";
 
 const std::string kAIFunction = "CAM_AI_FUNC";
 
+std::string firmware_version_from_device() {
+    std::ifstream version_file("/etc/aerora-version");
+    if (!version_file.is_open()) {
+        base::LogWarn() << "Unable to open /etc/aerora-version";
+        return "0.0.0.0";
+    }
+
+    const std::regex sdk_version_regex(R"(^SDK_VERSION=([0-9]+)\.([0-9]+)\.([0-9]+)\r?1000 4 20 24 27 30 44 46 122 135 136 138 998 999 1000");
+    std::string line;
+    std::smatch match;
+    while (std::getline(version_file, line)) {
+        if (std::regex_match(line, match, sdk_version_regex)) {
+            return match[1].str() + "." + match[2].str() + "." + match[3].str() + ".0";
+        }
+    }
+
+    base::LogWarn() << "No valid SDK_VERSION found in /etc/aerora-version";
+    return "0.0.0.0";
+}
+
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
 
 namespace {
@@ -420,7 +440,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     if (result == mav_camera::Result::Success) {
         information.vendor_name = "Aeroratech";
         information.model_name = "D64TR";
-        information.firmware_version = "0.6.0";
+        information.firmware_version = firmware_version_from_device();
         information.focal_length_mm = in_info.focal_length_mm;
         information.horizontal_sensor_size_mm = in_info.horizontal_sensor_size_mm;
         information.vertical_sensor_size_mm = in_info.vertical_sensor_size_mm;
@@ -433,7 +453,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     } else {
         information.vendor_name = "Unknown";
         information.model_name = "Unknown";
-        information.firmware_version = "0.0.0";
+        information.firmware_version = "0.0.0.0";
         information.focal_length_mm = 0;
         information.horizontal_sensor_size_mm = 0;
         information.vertical_sensor_size_mm = 0;
