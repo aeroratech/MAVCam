@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <charconv>
+#include <cstdint>
 #include <cstdlib>
 #include <future>
 #include <iomanip>  // for std::setprecision
@@ -61,6 +63,36 @@ std::string firmware_version_from_device() {
 
     base::LogWarn() << "No valid SDK_VERSION found in /etc/aerora-version";
     return "0.0.0.0";
+}
+
+int32_t definition_file_version_from_device() {
+    constexpr const char *kDefinitionDirectory = "/usr/share/mav-cam/definition/";
+    constexpr const char *kDefinitionFileName = "D64TR.xml";
+    const std::string definition_file_path = std::string(kDefinitionDirectory) + kDefinitionFileName;
+    std::ifstream definition_file(definition_file_path);
+    if (!definition_file.is_open()) {
+        base::LogWarn() << "Unable to open " << definition_file_path;
+        return 0;
+    }
+
+    const std::regex definition_version_regex(
+        R"definition(^\s*<definition\s+version="([0-9]+)"[^>]*>\s*\r?1000 4 20 24 27 30 44 46 122 135 136 138 998 999 1000definition");
+    std::string line;
+    std::smatch match;
+    while (std::getline(definition_file, line)) {
+        if (std::regex_match(line, match, definition_version_regex)) {
+            int32_t version = 0;
+            const std::string &value = match[1].str();
+            const auto [ptr, error] = std::from_chars(value.data(), value.data() + value.size(), version);
+            if (error == std::errc{} && ptr == value.data() + value.size()) {
+                base::LogInfo() << "Definition file version: " << version;
+                return version;
+            }
+        }
+    }
+
+    base::LogWarn() << "No valid definition version found in " << definition_file_path;
+    return 0;
 }
 
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
@@ -447,8 +479,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.horizontal_resolution_px = in_info.horizontal_resolution_px;
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
-        //TODO (Thomas) : hard code
-        information.definition_file_version = 19;
+        information.definition_file_version = definition_file_version_from_device();
         information.definition_file_uri = "mftp://definition/D64TR.xml";
     } else {
         information.vendor_name = "Unknown";
