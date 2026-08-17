@@ -62,6 +62,8 @@ namespace {
 constexpr const char *kLaserShmName = "/laser_shm";
 constexpr const char *kTrackingAddress = "127.0.0.1";
 constexpr int kTrackingPort = 14600;
+constexpr const char *kDefinitionDirectory = "/usr/share/mav-cam/definition/";
+constexpr const char *kDefinitionFileName = "Q50MZ.xml";
 
 struct LaserSharedMemory {
     std::uint32_t sequence{0};
@@ -105,6 +107,32 @@ std::optional<int32_t> parse_int32(const std::string &value) {
         return std::nullopt;
     }
     return result;
+}
+
+int32_t definition_file_version_from_device() {
+    const std::string definition_file_path = std::string(kDefinitionDirectory) + kDefinitionFileName;
+    std::ifstream definition_file(definition_file_path);
+    if (!definition_file.is_open()) {
+        base::LogWarn() << "Unable to open " << definition_file_path;
+        return 0;
+    }
+
+    const std::regex definition_version_regex(
+        R"definition(^\s*<definition\s+version="([0-9]+)"[^>]*>\s*\r?$)definition");
+    std::string line;
+    std::smatch match;
+    while (std::getline(definition_file, line)) {
+        if (std::regex_match(line, match, definition_version_regex)) {
+            const auto version = parse_int32(match[1].str());
+            if (version.has_value()) {
+                base::LogInfo() << "Definition file version: " << *version;
+                return *version;
+            }
+        }
+    }
+
+    base::LogWarn() << "No valid definition version found in " << definition_file_path;
+    return 0;
 }
 
 // Map the UI's linear range to the camera range while preserving the endpoints.
@@ -533,9 +561,8 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.horizontal_resolution_px = in_info.horizontal_resolution_px;
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
-        //TODO (Thomas) : hard code
-        information.definition_file_version = 7;
-        information.definition_file_uri = "mftp://definition/Q50MZ.xml";
+        information.definition_file_version = definition_file_version_from_device();
+        information.definition_file_uri = std::string("mftp://definition/") + kDefinitionFileName;
     } else {
         information.vendor_name = "Unknown";
         information.model_name = "Unknown";
