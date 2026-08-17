@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <future>
 #include <iomanip>  // for std::setprecision
 #include <regex>
@@ -73,6 +74,27 @@ constexpr float fusion_zoom_change_threshold = 25.0F;
 constexpr float kZoomRangeMin = 1.0F;
 constexpr float kZoomRangeMax = 100.0F;
 constexpr float kFusionZoomInputThreshold = 60.0F;
+
+std::string firmware_version_from_device() {
+    std::ifstream version_file("/etc/aerora-version");
+    if (!version_file.is_open()) {
+        base::LogWarn() << "Unable to open /etc/aerora-version";
+        return "0.0.0.0";
+    }
+
+    const std::regex sdk_version_regex(R"(^SDK_VERSION=([0-9]+)\.([0-9]+)\.([0-9]+)\r?$)");
+    std::string line;
+    std::smatch match;
+    while (std::getline(version_file, line)) {
+        if (std::regex_match(line, match, sdk_version_regex)) {
+            // Aerora's SDK version has no development component.
+            return match[1].str() + "." + match[2].str() + "." + match[3].str() + ".0";
+        }
+    }
+
+    base::LogWarn() << "No valid SDK_VERSION found in /etc/aerora-version";
+    return "0.0.0.0";
+}
 
 std::optional<int32_t> parse_int32(const std::string &value) {
     int32_t result = 0;
@@ -504,7 +526,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     if (result == mav_camera::Result::Success) {
         information.vendor_name = "Aeroratech";
         information.model_name = "Q50MZ";
-        information.firmware_version = "0.1.0";
+        information.firmware_version = firmware_version_from_device();
         information.focal_length_mm = in_info.focal_length_mm;
         information.horizontal_sensor_size_mm = in_info.horizontal_sensor_size_mm;
         information.vertical_sensor_size_mm = in_info.vertical_sensor_size_mm;
@@ -517,7 +539,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     } else {
         information.vendor_name = "Unknown";
         information.model_name = "Unknown";
-        information.firmware_version = "0.0.0";
+        information.firmware_version = "0.0.0.0";
         information.focal_length_mm = 0;
         information.horizontal_sensor_size_mm = 0;
         information.vertical_sensor_size_mm = 0;
