@@ -8,7 +8,9 @@
 #include <chrono>
 #include <charconv>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <future>
 #include <iomanip>  // for std::setprecision
 #include <regex>
@@ -52,7 +54,7 @@ std::string firmware_version_from_device() {
         return "0.0.0.0";
     }
 
-    const std::regex sdk_version_regex(R"(^SDK_VERSION=([0-9]+)\.([0-9]+)\.([0-9]+)\r?1000 4 20 24 27 30 44 46 122 135 136 138 998 999 1000");
+    const std::regex sdk_version_regex(R"(^SDK_VERSION=([0-9]+)\.([0-9]+)\.([0-9]+)\r?$)");
     std::string line;
     std::smatch match;
     while (std::getline(version_file, line)) {
@@ -76,7 +78,7 @@ int32_t definition_file_version_from_device() {
     }
 
     const std::regex definition_version_regex(
-        R"definition(^\s*<definition\s+version="([0-9]+)"[^>]*>\s*\r?1000 4 20 24 27 30 44 46 122 135 136 138 998 999 1000definition");
+        R"definition(^\s*<definition\s+version="([0-9]+)"[^>]*>\s*\r?$)definition");
     std::string line;
     std::smatch match;
     while (std::getline(definition_file, line)) {
@@ -93,6 +95,52 @@ int32_t definition_file_version_from_device() {
 
     base::LogWarn() << "No valid definition version found in " << definition_file_path;
     return 0;
+}
+
+std::optional<int32_t> parse_int32(const std::string &value) {
+    int32_t result = 0;
+    const auto [ptr, error] = std::from_chars(value.data(), value.data() + value.size(), result);
+    return (error == std::errc{} && ptr == value.data() + value.size()) ? std::optional<int32_t>(result)
+                                                               : std::nullopt;
+}
+
+std::optional<std::string> read_device_property(const char *property) {
+    const std::string command = std::string("getprop ") + property;
+    FILE *pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        base::LogWarn() << "Unable to read " << property;
+        return std::nullopt;
+    }
+    char buffer[128];
+    std::string output;
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) output += buffer;
+    if (pclose(pipe) != 0) return std::nullopt;
+    return output;
+}
+
+void read_preview_stream_from_device(int &width, int &height, float &frame_rate, int &bitrate) {
+    const auto mode = read_device_property("persist.video.preview.mode");
+    if (mode.has_value()) {
+        const std::regex mode_regex(R"(^\s*([0-9]+)x([0-9]+)@([0-9]+(?:\.[0-9]+)?)\s*)");
+        std::smatch match;
+        if (std::regex_match(*mode, match, mode_regex)) {
+            const auto parsed_width = parse_int32(match[1].str());
+            const auto parsed_height = parse_int32(match[2].str());
+            char *end = nullptr;
+            const float parsed_rate = std::strtof(match[3].str().c_str(), &end);
+            if (parsed_width && parsed_height && *parsed_width > 0 && *parsed_height > 0 &&
+                parsed_rate > 0.0F) {
+                width = *parsed_width;
+                height = *parsed_height;
+                frame_rate = parsed_rate;
+            }
+        }
+    }
+    const auto property_bitrate = read_device_property("persist.video.preview.bitrate");
+    if (property_bitrate.has_value()) {
+        const auto parsed_bitrate = parse_int32(std::regex_replace(*property_bitrate, std::regex("\\s"), ""));
+        if (parsed_bitrate && *parsed_bitrate > 0) bitrate = *parsed_bitrate;
+    }
 }
 
 static const int32_t kSDCardMinAvaliableMB = 200;  ///< min sdcard avaiable MB
@@ -518,10 +566,10 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_video_stream_info(
     mavsdk::CameraServer::VideoStreamInfo normal_video_stream;
     normal_video_stream.stream_id = 1;
 
-    normal_video_stream.settings.frame_rate_hz = 30.0;
-    normal_video_stream.settings.horizontal_resolution_pix = 1280;
-    normal_video_stream.settings.vertical_resolution_pix = 720;
-    normal_video_stream.settings.bit_rate_b_s = 1 * 1024 * 1024;
+    normal_video_stream.settings.frame_rate_hz = _preview_stream_frame_rate;
+    normal_video_stream.settings.horizontal_resolution_pix = _preview_stream_width;
+    normal_video_stream.settings.vertical_resolution_pix = _preview_stream_height;
+    normal_video_stream.settings.bit_rate_b_s = _preview_stream_bitrate;
     normal_video_stream.settings.rotation_deg = 0;
     normal_video_stream.settings.uri = "rtsp://" + _rtsp_ip + "/live";
     normal_video_stream.settings.horizontal_fov_deg = 0;
@@ -746,6 +794,9 @@ bool CameraLocalClient::init() {
     _settings[kIrCamFFCMode] = init_ir_ffc_mode();
     _settings[kIrCamFFC] = "0";
     _settings[kAIFunction] = init_ai_function();
+
+    read_preview_stream_from_device(_preview_stream_width, _preview_stream_height,
+                                    _preview_stream_frame_rate, _preview_stream_bitrate);
 
     base::LogDebug() << "Init settings :";
     for (const auto &setting : _settings) {

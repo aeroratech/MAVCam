@@ -307,6 +307,10 @@ private:
     mutable std::mutex _tracking_frame_mutex;
     TrackingFrame _tracking_frame;
     bool _has_tracking_frame{false};
+    int _preview_stream_width{1280};
+    int _preview_stream_height{720};
+    float _preview_stream_frame_rate{30.0F};
+    int _preview_stream_bitrate{2 * 1000 * 1000};
 };
 
 }  // namespace mavcam
