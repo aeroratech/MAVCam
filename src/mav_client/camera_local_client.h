@@ -5,8 +5,8 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <thread>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -368,6 +368,11 @@ private:
     std::atomic<float> _current_shuter_speed{-1.0f};
 private:
     std::string _rtsp_ip;
+private:
+    int _preview_stream_width{1280};
+    int _preview_stream_height{720};
+    float _preview_stream_frame_rate{30.0F};
+    int _preview_stream_bitrate{2 * 1000 * 1000};  //2M default
 };
 
 }  // namespace mavcam

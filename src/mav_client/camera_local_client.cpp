@@ -13,6 +13,7 @@
 #include <charconv>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <future>
@@ -64,6 +65,8 @@ constexpr const char *kTrackingAddress = "127.0.0.1";
 constexpr int kTrackingPort = 14600;
 constexpr const char *kDefinitionDirectory = "/usr/share/mav-cam/definition/";
 constexpr const char *kDefinitionFileName = "Q50MZ.xml";
+constexpr const char *kVideoPreviewModeProperty = "persist.video.preview.mode";
+constexpr const char *kVideoPreviewBitrateProperty = "persist.video.preview.bitrate";
 
 struct LaserSharedMemory {
     std::uint32_t sequence{0};
@@ -109,8 +112,90 @@ std::optional<int32_t> parse_int32(const std::string &value) {
     return result;
 }
 
+bool read_preview_stream_from_device(int &width, int &height, float &frame_rate) {
+    const std::string command = std::string("getprop ") + kVideoPreviewModeProperty;
+    FILE *pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        base::LogWarn() << "Unable to read " << kVideoPreviewModeProperty;
+        return false;
+    }
+
+    char buffer[128];
+    std::string output;
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        output += buffer;
+    }
+    if (pclose(pipe) != 0) {
+        base::LogWarn() << "Unable to read " << kVideoPreviewModeProperty;
+        return false;
+    }
+
+    const std::regex preview_mode_regex(R"(^\s*([0-9]+)x([0-9]+)@([0-9]+(?:\.[0-9]+)?)\s*$)");
+    std::smatch match;
+    if (!std::regex_match(output, match, preview_mode_regex)) {
+        base::LogWarn() << "Invalid " << kVideoPreviewModeProperty << ": " << output;
+        return false;
+    }
+
+    const auto parsed_width = parse_int32(match[1].str());
+    const auto parsed_height = parse_int32(match[2].str());
+    const std::string frame_rate_string = match[3].str();
+    char *end = nullptr;
+    errno = 0;
+    const float parsed_frame_rate = std::strtof(frame_rate_string.c_str(), &end);
+    if (errno == ERANGE || end == frame_rate_string.c_str() || *end != '\0') {
+        return false;
+    }
+    if (!parsed_width.has_value() || !parsed_height.has_value() || *parsed_width <= 0 ||
+        *parsed_height <= 0 || parsed_frame_rate <= 0.0F) {
+        base::LogWarn() << "Invalid " << kVideoPreviewModeProperty << ": " << output;
+        return false;
+    }
+
+    width = *parsed_width;
+    height = *parsed_height;
+    frame_rate = parsed_frame_rate;
+    return true;
+}
+
+bool read_preview_stream_bitrate_from_device(int &bitrate) {
+    const std::string command = std::string("getprop ") + kVideoPreviewBitrateProperty;
+    FILE *pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        base::LogWarn() << "Unable to read " << kVideoPreviewBitrateProperty;
+        return false;
+    }
+
+    char buffer[128];
+    std::string output;
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        output += buffer;
+    }
+    if (pclose(pipe) != 0) {
+        base::LogWarn() << "Unable to read " << kVideoPreviewBitrateProperty;
+        return false;
+    }
+
+    const std::regex bitrate_regex(R"(^\s*([0-9]+)\s*$)");
+    std::smatch match;
+    if (!std::regex_match(output, match, bitrate_regex)) {
+        base::LogWarn() << "Invalid " << kVideoPreviewBitrateProperty << ": " << output;
+        return false;
+    }
+
+    const auto parsed_bitrate = parse_int32(match[1].str());
+    if (!parsed_bitrate.has_value() || *parsed_bitrate <= 0) {
+        base::LogWarn() << "Invalid " << kVideoPreviewBitrateProperty << ": " << output;
+        return false;
+    }
+
+    bitrate = *parsed_bitrate;
+    return true;
+}
+
 int32_t definition_file_version_from_device() {
-    const std::string definition_file_path = std::string(kDefinitionDirectory) + kDefinitionFileName;
+    const std::string definition_file_path =
+        std::string(kDefinitionDirectory) + kDefinitionFileName;
     std::ifstream definition_file(definition_file_path);
     if (!definition_file.is_open()) {
         base::LogWarn() << "Unable to open " << definition_file_path;
@@ -140,16 +225,14 @@ int32_t definition_file_version_from_device() {
 float map_zoom_range(float range) {
     const float clamped_range = std::clamp(range, kZoomRangeMin, kZoomRangeMax);
     if (clamped_range <= kFusionZoomInputThreshold) {
-        return kZoomRangeMin +
-               (clamped_range - kZoomRangeMin) *
-                   (fusion_zoom_change_threshold - kZoomRangeMin) /
-                   (kFusionZoomInputThreshold - kZoomRangeMin);
+        return kZoomRangeMin + (clamped_range - kZoomRangeMin) *
+                                   (fusion_zoom_change_threshold - kZoomRangeMin) /
+                                   (kFusionZoomInputThreshold - kZoomRangeMin);
     }
 
-    return fusion_zoom_change_threshold +
-           (clamped_range - kFusionZoomInputThreshold) *
-               (kZoomRangeMax - fusion_zoom_change_threshold) /
-               (kZoomRangeMax - kFusionZoomInputThreshold);
+    return fusion_zoom_change_threshold + (clamped_range - kFusionZoomInputThreshold) *
+                                              (kZoomRangeMax - fusion_zoom_change_threshold) /
+                                              (kZoomRangeMax - kFusionZoomInputThreshold);
 }
 }  // namespace
 
@@ -191,12 +274,8 @@ void IRCaptureCallback(ir_camera::IRFrame *frame, void *context) {
     }
 }
 
-CameraLocalClient::CameraLocalClient(std::string rtsp_ip) : _rtsp_ip(std::move(rtsp_ip)) {
-    _image_count = 0;
-    _is_recording_video = false;
-    _detection_server.set_callback(
-        [this](const TrackingFrame &frame) { tracking_callback(frame); });
-}
+CameraLocalClient::CameraLocalClient(std::string rtsp_ip)
+    : _image_count(0), _is_recording_video(false), _rtsp_ip(std::move(rtsp_ip)) {}
 
 CameraLocalClient::~CameraLocalClient() {
     deinit();
@@ -527,8 +606,7 @@ mavsdk::CameraServer::Result CameraLocalClient::set_zoom_range(float range) {
             return mavsdk::CameraServer::Result::Error;
         }
         // The telephoto lens needs a smaller digital zoom range than the wide lens.
-        real_range = std::max(kZoomRangeMin,
-                              (real_range - fusion_zoom_change_threshold) / 3.0F);
+        real_range = std::max(kZoomRangeMin, (real_range - fusion_zoom_change_threshold) / 3.0F);
     } else {
         if (!set_camera_display_mode("0")) {
             return mavsdk::CameraServer::Result::Error;
@@ -598,10 +676,10 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_video_stream_info(
     mavsdk::CameraServer::VideoStreamInfo normal_video_stream;
     normal_video_stream.stream_id = 1;
 
-    normal_video_stream.settings.frame_rate_hz = 30.0;
-    normal_video_stream.settings.horizontal_resolution_pix = 1920;
-    normal_video_stream.settings.vertical_resolution_pix = 1080;
-    normal_video_stream.settings.bit_rate_b_s = 2 * 1024 * 1024;
+    normal_video_stream.settings.frame_rate_hz = _preview_stream_frame_rate;
+    normal_video_stream.settings.horizontal_resolution_pix = _preview_stream_width;
+    normal_video_stream.settings.vertical_resolution_pix = _preview_stream_height;
+    normal_video_stream.settings.bit_rate_b_s = _preview_stream_bitrate;
     normal_video_stream.settings.rotation_deg = 0;
     normal_video_stream.settings.uri = "rtsp://" + _rtsp_ip + "/live";
     normal_video_stream.settings.horizontal_fov_deg = 0;
@@ -853,6 +931,16 @@ bool CameraLocalClient::init() {
     init_laser_sensor();
     init_backend_thread();
 
+    read_preview_stream_from_device(_preview_stream_width, _preview_stream_height,
+                                    _preview_stream_frame_rate);
+    read_preview_stream_bitrate_from_device(_preview_stream_bitrate);
+    base::LogInfo() << "Preview stream: " << _preview_stream_width << "x" << _preview_stream_height
+                    << "@" << _preview_stream_frame_rate << ", " << _preview_stream_bitrate
+                    << " bps";
+
+    _detection_server.set_callback(
+        [this](const TrackingFrame &frame) { tracking_callback(frame); });
+
     base::LogDebug() << "Init settings :";
     for (const auto &setting : _settings) {
         base::LogDebug() << "  - " << setting.first << " : " << setting.second;
@@ -965,7 +1053,8 @@ void CameraLocalClient::capture_callback(mav_camera::MAVFrame *main_frame,
         texts.emplace_back(start_x, start_y, "ISO: " + std::to_string(current_iso));
     }
     if (current_shutter_speed >= 0) {
-        texts.emplace_back(start_x, start_y + 30, "ShutterSpeed: " + std::to_string(current_shutter_speed) + " s");
+        texts.emplace_back(start_x, start_y + 30,
+                           "ShutterSpeed: " + std::to_string(current_shutter_speed) + " s");
     }
 
     const int laser_distance_raw = _laser_distance_raw.load();
@@ -1665,8 +1754,7 @@ std::string CameraLocalClient::init_camera_display_mode() {
 
 bool CameraLocalClient::set_camera_display_mode(std::string mode) {
     int mode_value = 0;
-    const auto parse_result =
-        std::from_chars(mode.data(), mode.data() + mode.size(), mode_value);
+    const auto parse_result = std::from_chars(mode.data(), mode.data() + mode.size(), mode_value);
     if (parse_result.ec != std::errc{} || parse_result.ptr != mode.data() + mode.size() ||
         mode_value < 0 || mode_value > 6) {
         base::LogError() << "Invalid camera display mode " << mode;
