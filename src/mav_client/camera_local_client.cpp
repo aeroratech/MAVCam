@@ -52,7 +52,7 @@ constexpr const char *kTrackingAddress = "127.0.0.1";
 constexpr int kTrackingPort = 14600;
 constexpr int kTrackingControlSourceWidth = 1920;
 constexpr int kTrackingPhotoControlSourceHeight = 1440;
-constexpr int kTrackingVideoControlSourceHeight = 1920;
+constexpr int kTrackingVideoControlSourceHeight = 1080;
 }  // namespace
 
 #define QCOM_CAMERA_LIBERAY "libqcom_camera.so"
