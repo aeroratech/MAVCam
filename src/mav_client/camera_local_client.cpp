@@ -913,8 +913,6 @@ bool CameraLocalClient::init_mav_camera() {
             options.photo_format = mav_camera::PhotoFormat::JPEG;
         } else if (store_photo_format == "1") {
             options.photo_format = mav_camera::PhotoFormat::DNG;
-        } else {
-            options.photo_format = mav_camera::PhotoFormat::JPEG_DNG;
         }
     }
 
@@ -1067,15 +1065,13 @@ bool CameraLocalClient::set_photo_quality(std::string value) {
 }
 
 bool CameraLocalClient::set_photo_format(std::string value) {
-    mav_camera::PhotoFormat photo_format;
+    mav_camera::PhotoFormat photo_format = mav_camera::PhotoFormat::JPEG;
     if (value == "0") {
         photo_format = mav_camera::PhotoFormat::JPEG;
     } else if (value == "1") {
         photo_format = mav_camera::PhotoFormat::DNG;
         _settings[kPhotoResolution] = "0";  //dng must be full resolution
-    } else if (value == "2") {
-        photo_format = mav_camera::PhotoFormat::JPEG_DNG;
-    }
+    } 
     auto result = _mav_camera->set_photo_format(photo_format);
     return result == mav_camera::Result::Success;
 }
