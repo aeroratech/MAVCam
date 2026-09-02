@@ -46,11 +46,12 @@ const std::string kIrCamFFCMode = "IRCAM_FFCMODE";
 const std::string kIrCamFFC = "IRCAM_FFC";
 
 const std::string kAIFunction = "CAM_AI_FUNC";
+const std::string kVersionFilePath = "/etc/aerora-version";
 
 std::string firmware_version_from_device() {
-    std::ifstream version_file("/etc/aerora-version");
+    std::ifstream version_file(kVersionFilePath);
     if (!version_file.is_open()) {
-        base::LogWarn() << "Unable to open /etc/aerora-version";
+        base::LogWarn() << "Unable to open " << kVersionFilePath;
         return "0.0.0";
     }
 
@@ -65,14 +66,39 @@ std::string firmware_version_from_device() {
         }
     }
 
-    base::LogWarn() << "No valid SDK_VERSION found in /etc/aerora-version";
+    base::LogWarn() << "No valid SDK_VERSION found in " << kVersionFilePath;
     return "0.0.0";
 }
 
-std::string product_name_from_device() {
-    std::ifstream version_file("/etc/aerora-version");
+std::string product_brand_from_device() {
+    std::ifstream version_file(kVersionFilePath);
     if (!version_file.is_open()) {
-        base::LogWarn() << "Unable to open /etc/aerora-version";
+        base::LogWarn() << "Unable to open " << kVersionFilePath;
+        return {};
+    }
+
+    constexpr const char *kProductBrandPrefix = "PRODUCTBRAND=";
+    std::string line;
+    while (std::getline(version_file, line)) {
+        if (line.rfind(kProductBrandPrefix, 0) == 0) {
+            std::string product_brand = line.substr(std::char_traits<char>::length(kProductBrandPrefix));
+            if (!product_brand.empty() && product_brand.back() == '\r') {
+                product_brand.pop_back();
+            }
+            if (!product_brand.empty()) {
+                return product_brand;
+            }
+        }
+    }
+
+    base::LogWarn() << "No valid PRODUCTBRAND found in " << kVersionFilePath;
+    return {};
+}
+
+std::string product_name_from_device() {
+    std::ifstream version_file(kVersionFilePath);
+    if (!version_file.is_open()) {
+        base::LogWarn() << "Unable to open " << kVersionFilePath;
         return {};
     }
 
@@ -90,7 +116,7 @@ std::string product_name_from_device() {
         }
     }
 
-    base::LogWarn() << "No valid PRODUCTNAME found in /etc/aerora-version";
+    base::LogWarn() << "No valid PRODUCTNAME found in " << kVersionFilePath;
     return {};
 }
 
@@ -189,7 +215,10 @@ constexpr int kTrackingVideoControlSourceHeight = 1080;
 
 static std::string kCameraBrand = []() {
     const char *env = std::getenv("CAM_BRAND");
-    return env ? std::string(env) : "AERORA";
+    if (env) {
+        return std::string(env);
+    }
+    return product_brand_from_device();
 }();
 
 static std::string kCameraModule = []() {
@@ -197,8 +226,7 @@ static std::string kCameraModule = []() {
     if (env) {
         return std::string(env);
     }
-    const std::string product_name = product_name_from_device();
-    return product_name.empty() ? "AERORA" : product_name;
+    return product_name_from_device();
 }();
 
 void RGBCaptureCallback(mav_camera::MAVFrame *frame, void *context) {
@@ -549,11 +577,8 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         result = _mav_camera->get_information(in_info);
     }
     if (result == mav_camera::Result::Success) {
-        information.vendor_name = "Aeroratech";
+        information.vendor_name = product_brand_from_device();
         information.model_name = product_name_from_device();
-        if (information.model_name.empty()) {
-            information.model_name = "D64TR";
-        }
         information.firmware_version = firmware_version_from_device();
         information.focal_length_mm = in_info.focal_length_mm;
         information.horizontal_sensor_size_mm = in_info.horizontal_sensor_size_mm;

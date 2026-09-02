@@ -2,7 +2,7 @@
 <mavlinkcamera>
     <definition version="19">
         <model>D64TR</model>
-        <vendor>Aeroratech</vendor>
+        <vendor>AERORA</vendor>
     </definition>
     <parameters>
         <!-- control = 0 tells us this should not create an automatic UI control -->
