@@ -67,6 +67,32 @@ std::string firmware_version_from_device() {
     return "0.0.0.0";
 }
 
+std::string product_name_from_device() {
+    constexpr const char *kFallbackProductName = "D64TR";
+    std::ifstream version_file("/etc/aerora-version");
+    if (!version_file.is_open()) {
+        base::LogWarn() << "Unable to open /etc/aerora-version";
+        return kFallbackProductName;
+    }
+
+    constexpr const char *kProductNamePrefix = "PRODUCTNAME=";
+    std::string line;
+    while (std::getline(version_file, line)) {
+        if (line.rfind(kProductNamePrefix, 0) == 0) {
+            std::string product_name = line.substr(std::char_traits<char>::length(kProductNamePrefix));
+            if (!product_name.empty() && product_name.back() == '\r') {
+                product_name.pop_back();
+            }
+            if (!product_name.empty()) {
+                return product_name;
+            }
+        }
+    }
+
+    base::LogWarn() << "No valid PRODUCTNAME found in /etc/aerora-version";
+    return kFallbackProductName;
+}
+
 int32_t definition_file_version_from_device() {
     constexpr const char *kDefinitionDirectory = "/usr/share/mav-cam/definition/";
     constexpr const char *kDefinitionFileName = "D64TR.xml";
@@ -519,7 +545,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     }
     if (result == mav_camera::Result::Success) {
         information.vendor_name = "Aeroratech";
-        information.model_name = "D64TR";
+        information.model_name = product_name_from_device();
         information.firmware_version = firmware_version_from_device();
         information.focal_length_mm = in_info.focal_length_mm;
         information.horizontal_sensor_size_mm = in_info.horizontal_sensor_size_mm;
