@@ -51,20 +51,22 @@ std::string firmware_version_from_device() {
     std::ifstream version_file("/etc/aerora-version");
     if (!version_file.is_open()) {
         base::LogWarn() << "Unable to open /etc/aerora-version";
-        return "0.0.0.0";
+        return "0.0.0";
     }
 
-    const std::regex sdk_version_regex(R"(^SDK_VERSION=([0-9]+)\.([0-9]+)\.([0-9]+)\r?$)");
+    const std::regex sdk_version_regex(
+        R"(^SDK_VERSION=v?([0-9]+)\.([0-9]+)(?:\.([0-9]+))?\r?)");
     std::string line;
     std::smatch match;
     while (std::getline(version_file, line)) {
         if (std::regex_match(line, match, sdk_version_regex)) {
-            return match[1].str() + "." + match[2].str() + "." + match[3].str() + ".0";
+            return match[1].str() + "." + match[2].str() +
+                   (match[3].matched ? "." + match[3].str() : "");
         }
     }
 
     base::LogWarn() << "No valid SDK_VERSION found in /etc/aerora-version";
-    return "0.0.0.0";
+    return "0.0.0";
 }
 
 std::string product_name_from_device() {
