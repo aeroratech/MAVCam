@@ -70,11 +70,10 @@ std::string firmware_version_from_device() {
 }
 
 std::string product_name_from_device() {
-    constexpr const char *kFallbackProductName = "D64TR";
     std::ifstream version_file("/etc/aerora-version");
     if (!version_file.is_open()) {
         base::LogWarn() << "Unable to open /etc/aerora-version";
-        return kFallbackProductName;
+        return {};
     }
 
     constexpr const char *kProductNamePrefix = "PRODUCTNAME=";
@@ -92,7 +91,7 @@ std::string product_name_from_device() {
     }
 
     base::LogWarn() << "No valid PRODUCTNAME found in /etc/aerora-version";
-    return kFallbackProductName;
+    return {};
 }
 
 int32_t definition_file_version_from_device(const std::string &product_name) {
@@ -195,7 +194,11 @@ static std::string kCameraBrand = []() {
 
 static std::string kCameraModule = []() {
     const char *env = std::getenv("CAM_MODEL");
-    return env ? std::string(env) : "AERORA";
+    if (env) {
+        return std::string(env);
+    }
+    const std::string product_name = product_name_from_device();
+    return product_name.empty() ? "AERORA" : product_name;
 }();
 
 void RGBCaptureCallback(mav_camera::MAVFrame *frame, void *context) {
@@ -548,6 +551,9 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
     if (result == mav_camera::Result::Success) {
         information.vendor_name = "Aeroratech";
         information.model_name = product_name_from_device();
+        if (information.model_name.empty()) {
+            information.model_name = "D64TR";
+        }
         information.firmware_version = firmware_version_from_device();
         information.focal_length_mm = in_info.focal_length_mm;
         information.horizontal_sensor_size_mm = in_info.horizontal_sensor_size_mm;
