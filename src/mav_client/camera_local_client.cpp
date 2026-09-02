@@ -93,10 +93,10 @@ std::string product_name_from_device() {
     return kFallbackProductName;
 }
 
-int32_t definition_file_version_from_device() {
+int32_t definition_file_version_from_device(const std::string &product_name) {
     constexpr const char *kDefinitionDirectory = "/usr/share/mav-cam/definition/";
-    constexpr const char *kDefinitionFileName = "D64TR.xml";
-    const std::string definition_file_path = std::string(kDefinitionDirectory) + kDefinitionFileName;
+    const std::string definition_file_path =
+        std::string(kDefinitionDirectory) + product_name + ".xml";
     std::ifstream definition_file(definition_file_path);
     if (!definition_file.is_open()) {
         base::LogWarn() << "Unable to open " << definition_file_path;
@@ -553,8 +553,8 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         information.horizontal_resolution_px = in_info.horizontal_resolution_px;
         information.vertical_resolution_px = in_info.vertical_resolution_px;
         information.lens_id = in_info.lens_id;
-        information.definition_file_version = definition_file_version_from_device();
-        information.definition_file_uri = "mftp://definition/D64TR.xml";
+        information.definition_file_version = definition_file_version_from_device(information.model_name);
+        information.definition_file_uri = "mftp://definition/" + information.model_name + ".xml";
     } else {
         information.vendor_name = "Unknown";
         information.model_name = "Unknown";
