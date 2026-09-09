@@ -607,7 +607,7 @@ mavsdk::CameraServer::Result CameraLocalClient::reset_settings(
                 _camera_param.set_value(kShutterSpeedName, _settings[kShutterSpeedName]);
                 _settings[kVideoResolution] = "1";  // default video resolution is 4k 30fps
                 _camera_param.set_value(kVideoResolution, _settings[kVideoResolution]);
-                _settings[kVideoFormat] = "1";
+                _settings[kVideoFormat] = "0";
                 _camera_param.set_value(kVideoFormat, _settings[kVideoFormat]);
                 _settings[kMeteringModeName] = "0";
                 _camera_param.set_value(kMeteringModeName, _settings[kMeteringModeName]);
@@ -867,6 +867,8 @@ mavsdk::CameraServer::Result CameraLocalClient::set_setting(mavsdk::Camera::Sett
     } else if (setting.setting_id == kVideoResolution) {
         set_success = set_video_resolution(setting.option.option_id);
         need_refresh_render_mode = true;
+    } else if (setting.setting_id == kVideoFormat) {
+        set_success = set_video_format(setting.option.option_id);
     } else if (setting.setting_id == kPhotoQuality) {
         set_success = set_photo_quality(setting.option.option_id);
     } else if (setting.setting_id == kPhotoFormat) {
@@ -949,10 +951,10 @@ bool CameraLocalClient::init() {
     _settings[kEVName] = init_exposure_value();
     _settings[kISOName] = init_iso();
     _settings[kShutterSpeedName] = init_shutter_speed();
-    _settings[kVideoFormat] = init_video_format();
     _settings[kMeteringModeName] = init_metering_mode();
     _settings[kSharpnessName] = init_sharpness();
 
+    _settings[kVideoFormat] = init_video_format();
     init_render_mode();
 
     // always disable ae lock on init
@@ -1464,8 +1466,6 @@ bool CameraLocalClient::init_main_camera() {
             options.photo_format = mav_camera::PhotoFormat::JPEG;
         } else if (store_photo_format == "1") {
             options.photo_format = mav_camera::PhotoFormat::DNG;
-        } else {
-            options.photo_format = mav_camera::PhotoFormat::JPEG_DNG;
         }
     }
 
@@ -1685,8 +1685,6 @@ bool CameraLocalClient::init_telephoto_camera() {
             options.photo_format = mav_camera::PhotoFormat::JPEG;
         } else if (store_photo_format == "1") {
             options.photo_format = mav_camera::PhotoFormat::DNG;
-        } else {
-            options.photo_format = mav_camera::PhotoFormat::JPEG_DNG;
         }
     }
 
@@ -1888,6 +1886,27 @@ bool CameraLocalClient::set_video_resolution(std::string value) {
     return result == mav_camera::Result::Success;
 }
 
+bool CameraLocalClient::set_video_format(std::string value) {
+    const bool use_h265 = value == "1";
+    const auto rgb_type =
+        use_h265 ? mav_camera::VideoEncoderType::H265 : mav_camera::VideoEncoderType::H264;
+    const auto ir_type =
+        use_h265 ? ir_camera::VideoEncoderType::H265 : ir_camera::VideoEncoderType::H264;
+
+    bool success = true;
+    auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
+    if (rgb_camera != nullptr) {
+        base::LogDebug() << "Set rgb video encoder type to " << rgb_type;
+        const auto result = rgb_camera->set_video_encoder_type(rgb_type);
+        success = success && result == mav_camera::Result::Success;
+    }
+    if (_ir_camera != nullptr) {
+        base::LogDebug() << "Set ir video encoder type to " << ir_type;
+        success = success && _ir_camera->set_video_encoder_type(ir_type);
+    }
+    return success;
+}
+
 bool CameraLocalClient::set_photo_quality(std::string value) {
     mav_camera::JpegQuality jpeg_quality;
     if (value == "0") {
@@ -1909,8 +1928,6 @@ bool CameraLocalClient::set_photo_format(std::string value) {
     } else if (value == "1") {
         photo_format = mav_camera::PhotoFormat::DNG;
         _settings[kPhotoResolution] = "0";  //dng must be full resolution
-    } else if (value == "2") {
-        photo_format = mav_camera::PhotoFormat::JPEG_DNG;
     }
     auto rgb_camera = (_main_camera != nullptr) ? _main_camera : _telephoto_camera;
     auto result = rgb_camera->set_photo_format(photo_format);
@@ -2115,10 +2132,12 @@ bool CameraLocalClient::set_shutter_speed(std::string shutter_speed) {
 std::string CameraLocalClient::init_video_format() {
     auto store_video_format = _camera_param.get_value(kVideoFormat);
     if (store_video_format.empty()) {
-        std::string video_format = "1";
+        std::string video_format = "0";
         _camera_param.set_value(kVideoFormat, video_format);
+        set_video_format(video_format);
         return video_format;
     } else {
+        set_video_format(store_video_format);
         return store_video_format;
     }
 }
