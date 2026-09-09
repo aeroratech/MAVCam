@@ -1488,6 +1488,17 @@ bool CameraLocalClient::init_main_camera() {
     result = _main_camera->open(options);
     if (result == mav_camera::Result::Success) {
         base::LogDebug() << "open qcom camera success";
+        const auto video_format = _camera_param.get_value(kVideoFormat);
+        if (!video_format.empty()) {
+            const auto encoder_type =
+                video_format == "1" ? mav_camera::VideoEncoderType::H265
+                                    : mav_camera::VideoEncoderType::H264;
+            if (_main_camera->set_video_encoder_type(encoder_type) != mav_camera::Result::Success) {
+                base::LogError() << "cannot restore main camera video encoder type";
+                free_main_camera(opened_library);
+                return false;
+            }
+        }
     } else {
         free_main_camera(opened_library);
     }
@@ -1707,6 +1718,18 @@ bool CameraLocalClient::init_telephoto_camera() {
     result = _telephoto_camera->open(options);
     if (result == mav_camera::Result::Success) {
         base::LogDebug() << "open telephoto camera success";
+        const auto video_format = _camera_param.get_value(kVideoFormat);
+        if (!video_format.empty()) {
+            const auto encoder_type =
+                video_format == "1" ? mav_camera::VideoEncoderType::H265
+                                    : mav_camera::VideoEncoderType::H264;
+            if (_telephoto_camera->set_video_encoder_type(encoder_type) !=
+                mav_camera::Result::Success) {
+                base::LogError() << "cannot restore telephoto camera video encoder type";
+                free_telephoto_camera(opened_library);
+                return false;
+            }
+        }
     } else {
         free_telephoto_camera(opened_library);
     }
