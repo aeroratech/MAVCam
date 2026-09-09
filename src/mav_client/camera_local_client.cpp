@@ -101,6 +101,31 @@ std::string firmware_version_from_device() {
     return "0.0.0";
 }
 
+std::string product_brand_from_device() {
+    std::ifstream version_file("/etc/aerora-version");
+    if (!version_file.is_open()) {
+        base::LogWarn() << "Unable to open /etc/aerora-version";
+        return {};
+    }
+
+    constexpr const char *kProductBrandPrefix = "PRODUCTBRAND=";
+    std::string line;
+    while (std::getline(version_file, line)) {
+        if (line.rfind(kProductBrandPrefix, 0) == 0) {
+            std::string product_brand = line.substr(std::char_traits<char>::length(kProductBrandPrefix));
+            if (!product_brand.empty() && product_brand.back() == '\r') {
+                product_brand.pop_back();
+            }
+            if (!product_brand.empty()) {
+                return product_brand;
+            }
+        }
+    }
+
+    base::LogWarn() << "No valid PRODUCTBRAND found in /etc/aerora-version";
+    return {};
+}
+
 std::string product_name_from_device() {
     std::ifstream version_file("/etc/aerora-version");
     if (!version_file.is_open()) {
@@ -659,7 +684,7 @@ mavsdk::CameraServer::Result CameraLocalClient::fill_information(
         result = _main_camera->get_information(in_info);
     }
     if (result == mav_camera::Result::Success) {
-        information.vendor_name = "Aeroratech";
+        information.vendor_name = product_brand_from_device();
         information.model_name = product_name_from_device();
         if (information.model_name.empty()) {
             information.model_name = "D64TR";

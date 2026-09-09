@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <mavlinkcamera>
-    <definition version="7">
+    <definition version="8">
         <model>Q50MZ</model>
-        <vendor>Aeroratech</vendor>
+        <vendor>AERORA</vendor>
     </definition>
     <parameters>
         <!-- control = 0 tells us this should not create an automatic UI control -->
