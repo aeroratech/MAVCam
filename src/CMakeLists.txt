@@ -16,7 +16,7 @@ add_subdirectory(mav_watch)
 
 #install definition file
 set(INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/share/mav-cam/definition/)
-set(DEFINITION_FILE ${CMAKE_CURRENT_SOURCE_DIR}/definition/D64TR.xml)
+set(DEFINITION_FILE ${CMAKE_CURRENT_SOURCE_DIR}/definition/SAMO.xml)
 
 install(FILES ${DEFINITION_FILE} DESTINATION ${INSTALL_DESTINATION})
 
